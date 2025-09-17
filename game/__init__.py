@@ -2,10 +2,11 @@
 
 # Importation des classes
 from .cast import Cast
+from .endgame import EndGame
 from .gameview import GameView
 
 # Visibilité des "from jeu import *"
-__all__ = ["Cast", "GameView"]
+__all__ = ["Cast","Endgame", "GameView"]
 
 # Variable de version du package
 __version__ = "0.1.0"

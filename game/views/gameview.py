@@ -1,8 +1,9 @@
 import arcade
 from casts import Cast
+from endgame import EndGame
 
-SCREEN_WIDTH = 600
-SCREEN_HEIGHT = 400
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Détection des touches"
 
 combinations = {
@@ -25,18 +26,24 @@ combinations = {
 
 words = ["soin", "majeur", "héros"]
 
+game_results = True  # True pour victoire, False pour défaite
 
 class GameView(arcade.Window):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen=True)
         self.message = "Appuie sur une touche..."
         self.cast = Cast()
         self.QTE_PHASE = False
         self.LVL = 3
+        self.end_screen = None
+        self.game_ended = False
 
     def on_draw(self):
         self.clear()
-        arcade.draw_text(self.message, 100, 200, arcade.color.WHITE, 20)
+        if not self.game_ended:
+            arcade.draw_text(self.message, 100, 200, arcade.color.WHITE, 20)
+        if self.end_screen:
+            self.end_screen.draw()
         
     def set_combo_data(self, combinations: dict, words: list):
         self.cast.set_data_combo(combinations, words, self.LVL)
@@ -55,14 +62,20 @@ class GameView(arcade.Window):
                 elif val == -1:
                     self.QTE_PHASE = False
                     print("QTE échoué !")
+                    self.show_end_screen()  # Défaite
                 else:
                     print("QTE continue..")
                 
     def on_update(self, delta_time):
         if not self.QTE_PHASE:
             self.set_combo_data(combinations, words)
+        if self.game_ended and self.end_screen:
+            self.end_screen.update(delta_time)
         # return super().on_update(delta_time)
                 
+    def show_end_screen(self):
+        self.game_ended = True
+        self.end_screen = EndGame(self, game_results)
 
     # def on_key_release(self, key, modifiers):
     #     self.message = f"Touche {key} relâchée"
