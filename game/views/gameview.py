@@ -170,47 +170,54 @@ class GameView(arcade.Window):
         return buckets
 
     def _draw_section(self, title, words, x_left, y_top, width, height):
-        # Constantes en pixels virtuels 1920x1080
+        # Constantes VIRTUELLES (NE PAS convertir ici)
         BASE_TITLE_H     = 30
         BASE_WORD_SIZE   = 25
         BASE_ARROW_SIZE  = 25
-        BASE_LINE_STEP   = 40   # pas vertical FIXE (interligne)
+        BASE_LINE_STEP   = 40
+        MIN_LINE_STEP    = 22
         GAP_COLS         = 10
+        TITLE_GAP        = 6
 
-        # Tailles scalées (écran courant)
-        title_h       = self._sh(BASE_TITLE_H)
-        font_word     = self._sf(BASE_WORD_SIZE)
-        font_arrows   = self._sf(BASE_ARROW_SIZE)
-        line_step     = self._sh(BASE_LINE_STEP)
+        # Tailles pour dessin (polices) : OK d'être scalées
+        font_word   = self._sf(BASE_WORD_SIZE)
+        font_arrows = self._sf(BASE_ARROW_SIZE)
 
+        # Curseur virtuel
         y_cursor = y_top
 
-        # Titre (largeur donnée ok, mais pas de wrap)
+        # ---- Titre ----
+        # on soustrait en VIRTUEL
+        y_cursor -= (BASE_TITLE_H + TITLE_GAP)
         arcade.draw_text(
             title,
             self._sx(x_left + width // 2),
-            self._sy(y_cursor),                 # ancre en haut
+            self._sy(y_top),  # ancré en haut
             arcade.color.DARK_BROWN,
-            self._sf(18),
+            self._sf(25),
             anchor_x="center",
             anchor_y="top",
             font_name="DigitalDisco",
         )
-        y_cursor -= (title_h + self._sh(6))
 
-        # Colonnes (pas de wrap → pas de width=)
-        col_word_w = int(width * 0.60)
+        # Hauteur dispo en virtuel
+        available_h = (y_cursor - (y_top - height))
+
+        # Interligne calculé en virtuel
+        lines = max(1, len(words))
+        target_step = BASE_LINE_STEP
+        min_step    = MIN_LINE_STEP
+        step = min(target_step, max(min_step, available_h // (lines + 1)))
+
+        col_word_w  = int(width * 0.60)
         col_arrow_x = x_left + col_word_w + GAP_COLS
-
-        # Hauteur max
         bottom_limit = y_top - height
 
         for w in words:
-            y_cursor -= line_step
+            y_cursor -= step
             if y_cursor < bottom_limit:
                 break
 
-            # MOT : police custom, pas de width, ancré en haut
             arcade.draw_text(
                 w,
                 self._sx(x_left),
@@ -222,7 +229,6 @@ class GameView(arcade.Window):
                 font_name="DigitalDisco",
             )
 
-            # FLÈCHES : police par défaut (meilleur rendu ↑↓←→), pas de width
             seq = self._find_sequence_for_word(w)
             arrows = self._format_sequence(seq)
             arcade.draw_text(
@@ -234,6 +240,7 @@ class GameView(arcade.Window):
                 anchor_x="left",
                 anchor_y="top",
             )
+
 
 
 
