@@ -1,5 +1,6 @@
 import arcade
 import random
+from larbin import Character
 from casts import Cast
 
 SCREEN_WIDTH = 1920
@@ -301,11 +302,9 @@ class GameView(arcade.Window):
                 # Si QTE terminé avec succès
                 if val == 1:
                     self.QTE_PHASE = False
-                    self.feedback_text = "YEAH !"
-                    self.feedback_timer = 1.5
+                    self.character.play_attack_animation()
                     print("QTE réussi ! Sort lancé !")
                     # Lancer l'animation d'attaque
-                    self.character.play_attack_animation()
                 elif val == -1:
                     self.QTE_PHASE = False
                     self.feedback_text = "Ohh..."
@@ -327,7 +326,7 @@ class GameView(arcade.Window):
                 
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
-        
+
         if self.feedback_timer > 0:
             self.feedback_timer -= delta_time
         # return super().on_update(delta_time)
