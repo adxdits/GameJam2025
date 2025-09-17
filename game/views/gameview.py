@@ -169,8 +169,8 @@ class GameView(arcade.Window):
                 buckets["CIBLES"].append(w)
         return buckets
 
-    def _draw_section(self, title, words, x_left, y_top, width, height):
-        # Constantes VIRTUELLES (NE PAS convertir ici)
+    def _draw_section(self, title, words, x_left, y_top, width, height, active_word=None, highlight_n=0):
+        # Constantes VIRTUELLES
         BASE_TITLE_H     = 30
         BASE_WORD_SIZE   = 25
         BASE_ARROW_SIZE  = 25
@@ -179,20 +179,17 @@ class GameView(arcade.Window):
         GAP_COLS         = 10
         TITLE_GAP        = 6
 
-        # Tailles pour dessin (polices) : OK d'être scalées
         font_word   = self._sf(BASE_WORD_SIZE)
         font_arrows = self._sf(BASE_ARROW_SIZE)
 
-        # Curseur virtuel
         y_cursor = y_top
 
-        # ---- Titre ----
-        # on soustrait en VIRTUEL
+        # Titre
         y_cursor -= (BASE_TITLE_H + TITLE_GAP)
         arcade.draw_text(
             title,
             self._sx(x_left + width // 2),
-            self._sy(y_top),  # ancré en haut
+            self._sy(y_top),
             arcade.color.DARK_BROWN,
             self._sf(25),
             anchor_x="center",
@@ -200,14 +197,9 @@ class GameView(arcade.Window):
             font_name="DigitalDisco",
         )
 
-        # Hauteur dispo en virtuel
         available_h = (y_cursor - (y_top - height))
-
-        # Interligne calculé en virtuel
         lines = max(1, len(words))
-        target_step = BASE_LINE_STEP
-        min_step    = MIN_LINE_STEP
-        step = min(target_step, max(min_step, available_h // (lines + 1)))
+        step = min(BASE_LINE_STEP, max(MIN_LINE_STEP, available_h // (lines + 1)))
 
         col_word_w  = int(width * 0.60)
         col_arrow_x = x_left + col_word_w + GAP_COLS
@@ -218,31 +210,42 @@ class GameView(arcade.Window):
             if y_cursor < bottom_limit:
                 break
 
+            # Colonne MOT (custom font)
             arcade.draw_text(
                 w,
                 self._sx(x_left),
                 self._sy(y_cursor),
-                arcade.color.BLACK,
-                font_word,
+                arcade.color.BLACK, font_word,
                 anchor_x="left",
                 anchor_y="top",
                 font_name="DigitalDisco",
             )
 
+            # Colonne FLÈCHES
             seq = self._find_sequence_for_word(w)
-            arrows = self._format_sequence(seq)
-            arcade.draw_text(
-                arrows,
+
+           # largeur dispo pour la colonne flèches
+            arw_total_w = self._sw(width - col_word_w - GAP_COLS)
+
+            if w == active_word:
+                hl = highlight_n
+                done = arcade.color.GO_GREEN
+                todo = arcade.color.BLACK
+            else:
+                hl = 0
+                done = arcade.color.GO_GREEN    # peu importe, rien ne sera “done”
+                todo = arcade.color.BLACK       # couleur des flèches non actives
+
+            self._draw_arrows_progress_screen(
+                seq,
                 self._sx(col_arrow_x),
-                self._sy(y_cursor),
-                arcade.color.BLACK,
+                self._sy(y_cursor),             # même y_top que le mot
+                arw_total_w,
                 font_arrows,
-                anchor_x="left",
-                anchor_y="top",
+                hl,
+                col_done=done,
+                col_todo=todo,
             )
-
-
-
 
     def _add_seen_words(self, words: list):
         for w in words:
@@ -252,6 +255,36 @@ class GameView(arcade.Window):
                 self.seen["QUALIFICATIFS"].append(w)
             elif w in CIBLES and w not in self.seen["CIBLES"]:
                 self.seen["CIBLES"].append(w)
+
+    def _current_progress_counts(self):
+        """Retourne combien de flèches sont validées pour chaque mot en cours (0..4)."""
+        idx = getattr(self.cast, "index_current_combo", 0)
+        p_type = min(4, idx)
+        p_qual = min(4, max(0, idx - 4)) if self.LVL >= 1 and len(self.current_words) >= 2 else 0
+        p_cibl = min(4, max(0, idx - 8)) if self.LVL >= 2 and len(self.current_words) >= 3 else 0
+        return {"TYPES": p_type, "QUALIFICATIFS": p_qual, "CIBLES": p_cibl}
+    
+    def _draw_arrows_progress_screen(
+        self, seq, sx_left, sy_top, total_width_px, font_size_px,
+        highlight_n,
+        col_done=arcade.color.GO_GREEN,
+        col_todo=arcade.color.BLACK,
+    ):
+        """Dessine 4 flèches en colonnes égales, ancrées en haut. Les highlight_n premières sont en col_done."""
+        if not seq:
+            return
+        cell_w = max(1, total_width_px // 4)
+        for i, keycode in enumerate(seq):
+            arrow = ARROW.get(keycode, "?")
+            color = col_done if i < highlight_n else col_todo
+            arcade.draw_text(
+                arrow,
+                sx_left + i * cell_w, sy_top,      # même Y haut pour toutes
+                color, font_size_px,
+                width=cell_w, align="center",      # centrage dans la cellule
+                anchor_x="center", anchor_y="top", # ANCRAGE EN HAUT (comme les mots)
+            )
+
 
     def on_draw(self):
         self.clear()
@@ -329,9 +362,27 @@ class GameView(arcade.Window):
             cibles_top = quals_top - h_quals
 
             # Dessin des trois sections
-            self._draw_section("Types", buckets["TYPES"], box_left, types_top, box_width, h_types)
-            self._draw_section("Qualificatifs", buckets["QUALIFICATIFS"], box_left, quals_top, box_width, h_quals)
-            self._draw_section("Cibles", buckets["CIBLES"], box_left, cibles_top, box_width, h_cibles)
+            # Progression courante (0..4 par catégorie)
+            prog = self._current_progress_counts()
+
+            # Mots actifs pour la phrase en cours (si présents)
+            active_type = self.current_words[0] if len(self.current_words) >= 1 else None
+            active_qual = self.current_words[1] if len(self.current_words) >= 2 else None
+            active_cibl = self.current_words[2] if len(self.current_words) >= 3 else None
+
+            # Dessin des trois sections avec surlignage
+            self._draw_section(
+                "Types", buckets["TYPES"], box_left, types_top, box_width, h_types,
+                active_word=active_type, highlight_n=prog["TYPES"]
+            )
+            self._draw_section(
+                "Qualificatifs", buckets["QUALIFICATIFS"], box_left, quals_top, box_width, h_quals,
+                active_word=active_qual, highlight_n=prog["QUALIFICATIFS"]
+            )
+            self._draw_section(
+                "Cibles", buckets["CIBLES"], box_left, cibles_top, box_width, h_cibles,
+                active_word=active_cibl, highlight_n=prog["CIBLES"]
+            )
 
         if self.feedback_timer > 0 and self.feedback_text:
             arcade.draw_text(
