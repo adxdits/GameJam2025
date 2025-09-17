@@ -9,7 +9,7 @@ class Cast:
     def __init__(self):
         self.combinations = {}
         self.current_combo = []
-        # print(f"{target.name} gagne +5 attaque pour 3 tours !")
+        #print(f"{target.name} gagne +5 attaque pour 3 tours !")
         
     def set_data_combo(self, combinations: dict, words: list, lvl: int):
         self.combinations = combinations
