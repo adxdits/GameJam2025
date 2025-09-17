@@ -330,21 +330,6 @@ class GameView(arcade.Window):
 
         # Si QTE actif : afficher la phrase + les enchaînements
         if self.QTE_PHASE and self.current_words:
-            # 1) Phrase centrée sur la partie gauche (hors parchemin)
-            phrase_width = max(1, int(self.UI_W - parchment_width - 80))
-            left_area_center_x = (self.UI_W - parchment_width) // 2
-            phrase = " ".join(self.current_words)
-            arcade.draw_text(
-                phrase,
-                self._sx(left_area_center_x),
-                self._sy(self.UI_H // 2),
-                arcade.color.WHITE,
-                self._sf(36),
-                anchor_x="center",
-                anchor_y="center",
-                align="center",
-                width=self._sw(phrase_width),
-            )
             # Afficher la phrase QTE dans la bulle si aucun dialogue héros n'est actif
             if self.dialog_manager.timer <= 0:
                 phrase = " ".join(self.current_words)

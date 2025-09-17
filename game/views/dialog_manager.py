@@ -63,41 +63,45 @@ class DialogManager:
             self.timer -= delta_time
 
     def draw_bubble(self, text, is_qte=False):
-        """Draw the dialog bubble with the specified text."""
+        """Draw the dialog bubble with the specified text, scaled to UI."""
         window = arcade.get_window()
         screen_width = window.width
         screen_height = window.height
 
-        # Calculate bubble position
-        bubble_width = 400
-        bubble_height = 200
-        bubble_x = screen_width // 2
-        bubble_y = screen_height - bubble_height // 2 - 20
+        ui_scale = getattr(window, "ui_scale", 1.0)
 
-        # Draw the bubble image
+        # Dimensions de base
+        base_width = 400
+        base_height = 200
+
+        # Appliquer le scale
+        bubble_width = int(base_width * ui_scale)
+        bubble_height = int(base_height * ui_scale)
+
+        # Position (haut de l’écran)
+        bubble_x = screen_width // 2
+        bubble_y = screen_height - bubble_height * 3 - int(20 * ui_scale)
+
+        # Bulle
         if self.bubble_texture:
             arcade.draw_texture_rectangle(
-                bubble_x, 
-                bubble_y, 
-                bubble_width, 
-                bubble_height, 
-                self.bubble_texture,
-                alpha=255
+                bubble_x, bubble_y, bubble_width, bubble_height, self.bubble_texture, alpha=255
             )
 
-        # Draw the text
+        # Texte
         if text:
             arcade.draw_text(
                 text,
-                bubble_x - (bubble_width // 2) + 40,
-                bubble_y + 20,
+                bubble_x,  # centre de la bulle
+                bubble_y + int(bubble_height * 0.10),  # centre vertical
                 arcade.color.BLACK,
-                20,
-                width=bubble_width - 80,
-                align="left" if not is_qte else "center",
+                int(20 * ui_scale),
+                width=bubble_width - int(80 * ui_scale),
+                align="center",
                 multiline=True,
                 font_name=self.font_name,
-                anchor_y="center"
+                anchor_x="center",
+                anchor_y="center",
             )
 
     def draw(self):
