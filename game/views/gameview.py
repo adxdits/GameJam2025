@@ -156,62 +156,69 @@ class GameView(arcade.Window):
         return buckets
 
     def _draw_section(self, title, words, x_left, y_top, width, height):
+        # Constantes en pixels virtuels 1920x1080
+        BASE_TITLE_H     = 30
+        BASE_WORD_SIZE   = 25
+        BASE_ARROW_SIZE  = 25
+        BASE_LINE_STEP   = 40   # pas vertical FIXE (interligne)
+        GAP_COLS         = 10
+
+        # Tailles scalées (écran courant)
+        title_h       = self._sh(BASE_TITLE_H)
+        font_word     = self._sf(BASE_WORD_SIZE)
+        font_arrows   = self._sf(BASE_ARROW_SIZE)
+        line_step     = self._sh(BASE_LINE_STEP)
+
         y_cursor = y_top
-        title_h = 40
 
-        font_size_word   = self._sf(23)
-        font_size_arrows = self._sf(23)
-        line_h = font_size_word + self._sh(12)
-
-        # Titre
+        # Titre (largeur donnée ok, mais pas de wrap)
         arcade.draw_text(
             title,
             self._sx(x_left + width // 2),
-            self._sy(y_cursor - title_h // 2),
+            self._sy(y_cursor),                 # ancre en haut
             arcade.color.DARK_BROWN,
             self._sf(18),
             anchor_x="center",
-            anchor_y="center",
-            width=self._sw(width),
-            align="center",
-            font_name="DigitalDisco"
+            anchor_y="top",
+            font_name="DigitalDisco",
         )
-        y_cursor -= (title_h + 6)
+        y_cursor -= (title_h + self._sh(6))
 
+        # Colonnes (pas de wrap → pas de width=)
         col_word_w = int(width * 0.60)
-        col_arrow_x = x_left + col_word_w + 8
+        col_arrow_x = x_left + col_word_w + GAP_COLS
+
+        # Hauteur max
+        bottom_limit = y_top - height
 
         for w in words:
-            seq = self._find_sequence_for_word(w)
-            arrows = self._format_sequence(seq)
-
-            y_cursor -= line_h
-            if y_cursor < (y_top - height):
+            y_cursor -= line_step
+            if y_cursor < bottom_limit:
                 break
 
-            # Mot (font custom)
+            # MOT : police custom, pas de width, ancré en haut
             arcade.draw_text(
                 w,
-                self._sx(x_left), self._sy(y_cursor),
+                self._sx(x_left),
+                self._sy(y_cursor),
                 arcade.color.BLACK,
-                font_size_word,
-                width=self._sw(col_word_w),
-                align="left",
+                font_word,
                 anchor_x="left",
-                anchor_y="baseline",
+                anchor_y="top",
                 font_name="DigitalDisco",
             )
 
-            # Flèches (font par défaut)
+            # FLÈCHES : police par défaut (meilleur rendu ↑↓←→), pas de width
+            seq = self._find_sequence_for_word(w)
+            arrows = self._format_sequence(seq)
             arcade.draw_text(
                 arrows,
-                self._sx(col_arrow_x), self._sy(y_cursor),
+                self._sx(col_arrow_x),
+                self._sy(y_cursor),
                 arcade.color.BLACK,
-                font_size_arrows,
-                width=self._sw(width - col_word_w - 8),
-                align="left",
+                font_arrows,
                 anchor_x="left",
-                anchor_y="baseline",
+                anchor_y="top",
             )
 
 
