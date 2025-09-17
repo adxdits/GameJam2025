@@ -62,18 +62,14 @@ class GameView(arcade.Window):
                     print("QTE continue..")
                 
     def on_update(self, delta_time):
-        if not self.QTE_PHASE:
-            self.set_combo_data(combinations, words)
+        # if not self.QTE_PHASE:
+        #     self.set_combo_data(combinations, words)
         if self.QTE_PHASE:
             self.qte_active_timer -= delta_time
             if self.qte_active_timer <= 0:
                 self.QTE_PHASE = False
                 print("Temps écoulé ! QTE échoué !")
         # return super().on_update(delta_time)
-                
-
-    # def on_key_release(self, key, modifiers):
-    #     self.message = f"Touche {key} relâchée"
 
 if __name__ == "__main__":
     GameView()
