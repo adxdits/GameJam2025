@@ -8,8 +8,8 @@ class EndGame:
 
         # Chemin des assets
         project_root = Path(__file__).resolve().parent.parent.parent
-        bg_path = project_root / "assets" / "NewsPaper" / "cobble_road.png"
-        image_path = project_root / "assets" / "NewsPaper" / "journal.png"
+        bg_path = project_root / "assets" / "End" / "cobble_road.png"
+        image_path = project_root / "assets" / "End" / "journal.png"
 
         # Background
         self.background = arcade.Sprite(str(bg_path))
