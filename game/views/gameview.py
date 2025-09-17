@@ -201,7 +201,18 @@ class GameView(arcade.Window):
                 self.seen["QUALIFICATIFS"].append(w)
             elif w in CIBLES and w not in self.seen["CIBLES"]:
                 self.seen["CIBLES"].append(w)
-
+    def spawn_enemies(self):
+        # Obtenir des unités aléatoires pour le niveau actuel
+        unit_types = Monster.get_random_units_for_level(self.LVL)
+        for unit_type in unit_types:
+            monster = Monster(
+                health=100,
+                x=100,  # Position initiale
+                y=200,  # Position initiale
+                speed=2.0,
+                unit_type=unit_type
+            )
+            self.enemies_buffer.append(monster)
     def on_draw(self):
         self.clear()
 
@@ -285,8 +296,11 @@ class GameView(arcade.Window):
                 width=int(self.width * 0.8),
             )
             
-        for m in self.enemies_buffer:
-            m.on_draw()
+        # Mettre à jour les animations des monstres
+        for monster in self.enemies_buffer:
+            should_remove = monster.update(delta_time)
+            if should_remove:
+             self.enemies_buffer.remove(monster)
     
         # Dessiner le personnage
         self.character.draw()
@@ -340,10 +354,18 @@ class GameView(arcade.Window):
         self.enemies_timer_before_spawn = 5
     
     def spawn_enemies(self):
-        # FAIRE UN SYSTEM ALEATOIRE POUR LES SPRITES DES ENEMIES
-        nb_enemies = random.randint(1, 3)
-        for i in range(nb_enemies):
-            self.enemies_buffer.append(Monster(3, -50 * (i+1), 170, 60))
+        # Obtenir des unités aléatoires pour le niveau actuel
+        unit_types = Monster.get_random_units_for_level(self.LVL)
+        for i, unit_type in enumerate(unit_types):
+            monster = Monster(
+                health=3,
+                x=-50 * (i+1),
+                y=170,
+                speed=60,
+                unit_type=unit_type,
+                window=self  # Pass the window instance to the monster
+            )
+            self.enemies_buffer.append(monster)
 
     def on_key_press(self, key, modifiers):
         # Si on est en phase de QTE
