@@ -1,12 +1,34 @@
 import arcade
+import random
+from animation.animation_utils import create_animation_from_frames
+from pathlib import Path
+
+# Liste des monstres disponibles par niveau
+MONSTER_TYPES = {
+    1: ["GoblinChauve", "Goblin", "EliteOrc"],        # Niveau 1
+    2: ["Orcrider", "Werebear", "WereWolf"],          # Niveau 2
+    3: ["Skeleton", "AxesSkeleton", "GreatSword"]     # Niveau 3
+}
 
 class Monster():
-    def __init__(self, health: int, x: int, y: int, speed: float):
+    def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1):
         self.health = health
         self.x = x
         self.y = y
         self.move_speed = speed
-        self.distance_moved = 0  # distance parcouru cumulée
+        self.distance_moved = 0
+        
+        # Sélection aléatoire du type de monstre en fonction du niveau
+        self.unit_type = random.choice(MONSTER_TYPES[level])
+        
+        # Animation properties
+        self.state = "walk"
+        self.animations = {}
+        self.current_sprite = None
+        self.is_dying = False
+        self.is_attacking = False
+        self._load_animations()
+        self.set_state("walk")
         
     def get_coordinates(self):
         return self.x, self.y
@@ -16,9 +38,19 @@ class Monster():
         self.y = y
         
     def update_coordinates(self, delta_x: int, delta_y: int):
+        prev_x = self.x
+        prev_y = self.y
         self.x += delta_x
         self.y += delta_y
-        self.distance_moved += abs(delta_x) + abs(delta_y)  # distance parcouru cumulée
+        distance = abs(delta_x) + abs(delta_y)
+        self.distance_moved += distance
+        
+        # Si on a effectivement bougé (position changée)
+        if distance > 0 and not self.is_dying and not self.is_attacking:
+            self.set_state("walk")
+        # Si on est arrêté et pas en train d'attaquer/mourir
+        elif distance == 0 and not self.is_dying and not self.is_attacking:
+            self.set_state("attack")
         
     def get_speed(self):
         return self.move_speed
@@ -27,13 +59,17 @@ class Monster():
         return self.distance_moved
         
     def take_damage(self, damage: float, monster_list=None):
+        if self.is_dying:
+            return
+            
         self.health -= damage
-        if self.health < 0:
-            self.health = 0
         print(f"{self.health} points de vie restants.")
-
-        if self.is_defeated(monster_list):
-            print("Le monstre est vaincu !")
+        
+        if self.health <= 0:
+            self.is_dying = True
+            self.set_state("death")
+            if monster_list and self in monster_list:
+                monster_list.remove(self)
 
     def is_defeated(self, monster_list=None) -> bool:
         if self.health <= 0:
@@ -43,11 +79,87 @@ class Monster():
             return True
         return False
     
+    def _load_animations(self):
+        """Charge les animations du monstre"""
+        base_path = Path(__file__).resolve().parent.parent / "animation" / "cropped-assets" / self.unit_type
+        
+        folders_map = {
+            "walk": [
+                "walk",
+                f"{self.unit_type}-walk",
+                f"{self.unit_type}-Walking",
+                "Wolf-walking",
+                f"{self.unit_type}-walking"
+            ],
+            "attack": [
+                "attack",
+                f"{self.unit_type}-attack",
+                "Wolf-attack",
+                f"{self.unit_type}-Attack",
+                f"{self.unit_type}-attacks"
+            ],
+            "death": [
+                "death",
+                "Death",
+                f"{self.unit_type}-death",
+                "Wolf-death",
+                f"{self.unit_type}-Death"
+            ],
+            "idle": [
+                "stand",
+                "standing",
+                f"{self.unit_type}-stand",
+                f"{self.unit_type}-standing",
+                "Wolf-standing",
+                f"{self.unit_type}-Standing"
+            ]
+        }
+        
+        for anim_type, possible_folders in folders_map.items():
+            for folder in possible_folders:
+                folder_path = base_path / folder
+                if folder_path.exists():
+                    frame_files = sorted([f.name for f in folder_path.glob("*.png")])
+                    if frame_files:
+                        self.animations[anim_type] = create_animation_from_frames(
+                            frame_paths=frame_files,
+                            base_path=str(folder_path),
+                            scale=3.0,
+                            position_x=self.x,
+                            position_y=self.y
+                        )
+                        break
+
+    def set_state(self, new_state):
+        """Change l'état et l'animation du monstre"""
+        if new_state in self.animations:
+            self.state = new_state
+            self.current_sprite = self.animations[new_state]
+
+    def update(self, delta_time):
+        """Met à jour l'animation"""
+        if self.current_sprite:
+            self.current_sprite.update_animation(delta_time)
+            self.current_sprite.center_x = self.x
+            self.current_sprite.center_y = self.y
+            
+            # Gestion de l'animation d'attaque
+            if self.is_attacking and self.state == "attack":
+                # Si l'animation d'attaque est terminée
+                if hasattr(self.current_sprite, 'frame_num'):
+                    if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
+                        self.is_attacking = False
+                        self.set_state("idle")
+            
+            # Gestion de l'animation de mort
+            if self.is_dying and self.state == "death":
+                # Si l'animation de mort est terminée
+                if hasattr(self.current_sprite, 'frame_num'):
+                    if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
+                        return True
+        return False
+
     def on_draw(self):
-        arcade.draw_rectangle_filled(
-            center_x=self.x,
-            center_y=self.y,
-            width=40,
-            height=40,
-            color=arcade.color.BLUE
-        )
+        """Dessine le monstre"""
+        if self.current_sprite:
+            self.current_sprite.draw()
