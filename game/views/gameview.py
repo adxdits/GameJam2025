@@ -1,8 +1,10 @@
 import arcade
-from casts import Cast
+from casts.cast import Cast
+from larbin.character import Character
 
-SCREEN_WIDTH = 600
-SCREEN_HEIGHT = 400
+
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Détection des touches"
 
 combinations = {
@@ -28,16 +30,21 @@ words = ["soin", "majeur", "héros"]
 
 class GameView(arcade.Window):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen=True)
         self.message = "Appuie sur une touche..."
         self.cast = Cast()
         self.QTE_PHASE = False
         self.LVL = 3
         self.qte_active_timer = 0  # Timer pour la durée du QTE
+        
+        # Créer le personnage
+        self.character = Character(self)
 
     def on_draw(self):
         self.clear()
         arcade.draw_text(self.message, 100, 200, arcade.color.WHITE, 20)
+        # Dessiner le personnage
+        self.character.draw()
         
     def set_combo_data(self, combinations: dict, words: list):
         self.qte_active_timer = 3 * (2+self.LVL-1)  # 3 / 5 / 7 secondes pour faire le QTE
@@ -55,20 +62,26 @@ class GameView(arcade.Window):
                 if val == 1:
                     self.QTE_PHASE = False
                     print("QTE réussi ! Sort lancé !")
+                    # Lancer l'animation d'attaque
+                    self.character.play_attack_animation()
                 elif val == -1:
                     self.QTE_PHASE = False
                     print("QTE échoué !")
+                    self.character.play_attack_animation()
                 else:
                     print("QTE continue..")
                 
     def on_update(self, delta_time):
-        # if not self.QTE_PHASE:
-        #     self.set_combo_data(combinations, words)
+        if not self.QTE_PHASE:
+            self.set_combo_data(combinations, words)
         if self.QTE_PHASE:
             self.qte_active_timer -= delta_time
             if self.qte_active_timer <= 0:
                 self.QTE_PHASE = False
                 print("Temps écoulé ! QTE échoué !")
+                
+        # Mettre à jour l'animation du personnage
+        self.character.update(delta_time)
         # return super().on_update(delta_time)
 
 if __name__ == "__main__":
