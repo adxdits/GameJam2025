@@ -282,6 +282,10 @@ class GameView(arcade.Window):
                 align="center",
                 width=self._sw(phrase_width),
             )
+            # Afficher la phrase QTE dans la bulle si aucun dialogue héros n'est actif
+            if self.dialog_manager.timer <= 0:
+                phrase = " ".join(self.current_words)
+                self.dialog_manager.draw_bubble(phrase, is_qte=True)
 
             # 2) Sur le parchemin : "mot : enchainement"
             buckets = self.seen
