@@ -14,11 +14,13 @@ class Cast:
     def set_data_combo(self, combinations: dict, words: list, lvl: int):
         self.combinations = combinations
         # Mise en place du QTE complet
-        self.current_combo.extend(self.combinations["TYPE"][words[0]])
+        self.current_combo = []          # <-- vider l'ancienne combo
+        self.index_current_combo = 0
+        self.current_combo.extend(self.combinations["TYPES"][words[0]])
         if lvl >= 2: 
-            self.current_combo.extend(self.combinations["QUALIFIER"][words[1]])
+            self.current_combo.extend(self.combinations["QUALIFICATIFS"][words[1]])
         if lvl == 3: 
-            self.current_combo.extend(self.combinations["TARGET"][words[2]])
+            self.current_combo.extend(self.combinations["CIBLES"][words[2]])
         
     def check_qte(self, key):
         if len(self.combinations) == 0 or len(self.current_combo) == 0:
