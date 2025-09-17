@@ -1,5 +1,7 @@
 import arcade
 from casts import Cast
+from views.dialog_manager import DialogManager
+
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
@@ -34,10 +36,13 @@ class GameView(arcade.Window):
         self.QTE_PHASE = False
         self.LVL = 3
         self.qte_active_timer = 0  # Timer pour la durée du QTE
+        self.dialogue_manager = DialogManager()
+        self.hero_mood = 2  # Exemple : humeur initiale
 
     def on_draw(self):
         self.clear()
         arcade.draw_text(self.message, 100, 200, arcade.color.WHITE, 20)
+        self.dialogue_manager.draw()
         
     def set_combo_data(self, combinations: dict, words: list):
         self.qte_active_timer = 3 * (2+self.LVL-1)  # 3 / 5 / 7 secondes pour faire le QTE
@@ -54,9 +59,15 @@ class GameView(arcade.Window):
                 # Si QTE terminé avec succès
                 if val == 1:
                     self.QTE_PHASE = False
+                    if self.hero_mood <= 3:
+                        self.hero_mood += 1
+                    self.dialogue_manager.get_dialogue(self.hero_mood)
                     print("QTE réussi ! Sort lancé !")
                 elif val == -1:
                     self.QTE_PHASE = False
+                    if self.hero_mood >= 0:
+                        self.hero_mood -= 1 
+                    self.dialogue_manager.get_dialogue(self.hero_mood)
                     print("QTE échoué !")
                 else:
                     print("QTE continue..")
@@ -70,6 +81,7 @@ class GameView(arcade.Window):
                 self.QTE_PHASE = False
                 print("Temps écoulé ! QTE échoué !")
         # return super().on_update(delta_time)
+        self.dialogue_manager.update(delta_time)
 
 if __name__ == "__main__":
     GameView()
