@@ -1,6 +1,7 @@
 import arcade
 import random
 from larbin import Character
+from chevalier import MainCharacter
 from casts import Cast
 from entities import Monster
 from views.dialog_manager import DialogManager
@@ -83,6 +84,7 @@ class GameView(arcade.Window):
         self.time_between_hero_attacks = None
 
         self.character = Character(self)
+        self.MainCharacter = MainCharacter(self)
 
         self.bg_tex = arcade.load_texture("../assets/Backgrounds/Lvl1.png")
         self.bg_w, self.bg_h = self.bg_tex.width, self.bg_tex.height
@@ -288,6 +290,8 @@ class GameView(arcade.Window):
     
         # Dessiner le personnage
         self.character.draw()
+
+        self.MainCharacter.draw()
         # Dessiner le dialogue
         self.dialog_manager.draw()
         
@@ -386,7 +390,7 @@ class GameView(arcade.Window):
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
 
-
+        self.MainCharacter.update(delta_time)
         # Update the dialogue manager
         self.dialog_manager.update(delta_time)
 
@@ -422,6 +426,8 @@ class GameView(arcade.Window):
         # Attaque héros sur ennemis
         elif self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks <= 0:
             self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
+            self.MainCharacter.play_attack_animation()
+
             self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS  # reset le timer
             
         if self.game_ended and self.end_screen:

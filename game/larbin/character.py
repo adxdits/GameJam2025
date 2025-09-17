@@ -10,7 +10,7 @@ class Character:
         self.animations = {}
         
         # Position initiale
-        self.x = 900
+        self.x = 1200
         self.y = 200
         
         # Pour gérer l'animation d'attaque
