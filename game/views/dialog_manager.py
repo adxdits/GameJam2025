@@ -62,42 +62,46 @@ class DialogManager:
         if self.timer > 0:
             self.timer -= delta_time
 
+    def draw_bubble(self, text, is_qte=False):
+        """Draw the dialog bubble with the specified text."""
+        window = arcade.get_window()
+        screen_width = window.width
+        screen_height = window.height
+
+        # Calculate bubble position
+        bubble_width = 400
+        bubble_height = 200
+        bubble_x = screen_width // 2
+        bubble_y = screen_height - bubble_height // 2 - 20
+
+        # Draw the bubble image
+        if self.bubble_texture:
+            arcade.draw_texture_rectangle(
+                bubble_x, 
+                bubble_y, 
+                bubble_width, 
+                bubble_height, 
+                self.bubble_texture,
+                alpha=255
+            )
+
+        # Draw the text
+        if text:
+            arcade.draw_text(
+                text,
+                bubble_x - (bubble_width // 2) + 40,
+                bubble_y + 20,
+                arcade.color.BLACK,
+                20,
+                width=bubble_width - 80,
+                align="left" if not is_qte else "center",
+                multiline=True,
+                font_name=self.font_name,
+                anchor_y="center"
+            )
+
     def draw(self):
-        """Draw the dialog bubble and text if the timer is active."""
+        """Draw the appropriate bubble based on the current state."""
         if self.timer > 0:
-            # Configure window dimensions
-            window = arcade.get_window()
-            screen_width = window.width
-            screen_height = window.height
-
-            # Calculate bubble position (centered at top of screen)
-            bubble_width = 400
-            bubble_height = 200
-            bubble_x = screen_width // 2
-            bubble_y = screen_height - bubble_height // 2 - 20  # 20 pixels from top
-
-            # Draw the bubble image
-            if self.bubble_texture:
-                arcade.draw_texture_rectangle(
-                    bubble_x, 
-                    bubble_y, 
-                    bubble_width, 
-                    bubble_height, 
-                    self.bubble_texture,
-                    alpha=255  # Make sure it's fully opaque
-                )
-
-            # Draw the dialog text
-            if self.current_dialog:
-                arcade.draw_text(
-                    self.current_dialog,  # Texte avec retour à la ligne initial
-                    bubble_x - (bubble_width // 2) + 40,  # Marge gauche
-                    bubble_y + 20,
-                    arcade.color.BLACK,
-                    20,
-                    width=bubble_width - 80,  # Largeur réduite pour forcer le retour à la ligne
-                    align="left",
-                    multiline=True,  # Permet le retour à la ligne automatique
-                    font_name=self.font_name,
-                    anchor_y="center"
-                )
+            # Si un dialogue de héros est actif, l'afficher
+            self.draw_bubble(self.current_dialog)
