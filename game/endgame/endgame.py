@@ -18,7 +18,7 @@ class EndGame:
         self.background.scale = max(
             self.window.width / self.background.width,
             self.window.height / self.background.height
-        )
+        )* 1.25
 
         # Image animée
         self.image = arcade.Sprite(str(image_path))
@@ -46,28 +46,25 @@ class EndGame:
             if self.fade_alpha <= 0:
                 self.fade_alpha = 0
                 self.fade_done = True  # fin du fondu
-            return
 
-        # Animation de l'image
-        if self.animation_done:
-            return
+        # Réduction progressive du scale et rotation pendant le fondu
+        if not self.fade_done:  # Pendant le fondu
+            # Réduction de l'échelle avec easing
+            if self.image.scale > self.target_scale:
+                diff = self.image.scale - self.target_scale
+                self.image.scale -= diff * self.scale_speed
+                if self.image.scale < self.target_scale:
+                    self.image.scale = self.target_scale
 
-        # Réduction progressive du scale avec easing
-        if self.image.scale > self.target_scale:
-            diff = self.image.scale - self.target_scale
-            self.image.scale -= diff * self.scale_speed
-            if self.image.scale < self.target_scale:
-                self.image.scale = self.target_scale
+            # Rotation progressive
+            if self.image.angle < self.target_angle:
+                diff_angle = self.target_angle - self.image.angle
+                self.image.angle += diff_angle * 0.05  # easing rotation
+                if self.image.angle > self.target_angle:
+                    self.image.angle = self.target_angle
 
-        # Rotation progressive
-        if self.image.angle < self.target_angle:
-            diff_angle = self.target_angle - self.image.angle
-            self.image.angle += diff_angle * 0.05  # easing rotation
-            if self.image.angle > self.target_angle:
-                self.image.angle = self.target_angle
-
-        # Vérifier si animation terminée
-        if self.image.scale == self.target_scale and self.image.angle == self.target_angle:
+        # Vérifier si l'animation est terminée
+        if self.fade_done and self.image.scale == self.target_scale and self.image.angle == self.target_angle:
             self.animation_done = True
 
     def draw(self):
