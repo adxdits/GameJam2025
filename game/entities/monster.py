@@ -124,7 +124,7 @@ class Monster():
                         self.animations[anim_type] = create_animation_from_frames(
                             frame_paths=frame_files,
                             base_path=str(folder_path),
-                            scale=3.0,
+                            scale=8.0,
                             position_x=self.x,
                             position_y=self.y
                         )

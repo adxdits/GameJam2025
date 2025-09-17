@@ -77,9 +77,9 @@ BACKGROUNDS = [
 ]
 
 SUCCESS_STAGES = [
-    15,
-    45,
-    100
+    1,
+    1,
+    1
 ]
 
 # =========================
@@ -459,15 +459,17 @@ class GameView(arcade.Window):
         self.enemies_timer_before_spawn = 5
     
     def spawn_enemies(self):
-        # FAIRE UN SYSTEM ALEATOIRE POUR LES SPRITES DES ENNEMIES
         nb_enemies = random.randint(1, 3)
+        # Ajuster le niveau pour correspondre aux niveaux 1, 2, 3
+        spawn_level = self.LVL + 1 if self.LVL < 3 else 3
+        
         for i in range(nb_enemies):
             monster = Monster(
                 health=3,
                 x=-50 * (i+1),
                 y=170,
                 speed=60,
-                # level=self.LVL  # Utilise le niveau actuel pour la sélection des monstres
+                level=spawn_level  # Passe le niveau pour la sélection des monstres
             )
             self.enemies_buffer.append(monster)
 
