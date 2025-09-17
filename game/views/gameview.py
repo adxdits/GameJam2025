@@ -175,7 +175,7 @@ class GameView(arcade.Window):
 
         font_size_word   = self._sf(23)
         font_size_arrows = self._sf(23)
-        line_h = int(font_size_word * 1.8)
+        line_h = font_size_word + self._sh(12)
 
         # Titre
         arcade.draw_text(
