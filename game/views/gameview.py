@@ -75,11 +75,12 @@ class GameView(arcade.Window):
         
         # --Entitées:
         # Monstres/Ennemies
-        self.enemies_timer_before_spawn = None
+        self.enemies_timer_before_spawn = 2.0  # Commencer avec un délai initial
         self.enemies_buffer = []
         self.enemies_timer_on_screen = 0
         self.enemies_on_screen = False
         self.moving_distance = 400 # Distance que doit parcourir un ennemi/monstre
+        self.LVL = 1  # Niveau initial
         
         self.time_between_hero_attacks = None
 
@@ -201,18 +202,7 @@ class GameView(arcade.Window):
                 self.seen["QUALIFICATIFS"].append(w)
             elif w in CIBLES and w not in self.seen["CIBLES"]:
                 self.seen["CIBLES"].append(w)
-    def spawn_enemies(self):
-        # Obtenir des unités aléatoires pour le niveau actuel
-        unit_types = Monster.get_random_units_for_level(self.LVL)
-        for unit_type in unit_types:
-            monster = Monster(
-                health=100,
-                x=100,  # Position initiale
-                y=200,  # Position initiale
-                speed=2.0,
-                unit_type=unit_type
-            )
-            self.enemies_buffer.append(monster)
+
     def on_draw(self):
         self.clear()
 
@@ -296,11 +286,8 @@ class GameView(arcade.Window):
                 width=int(self.width * 0.8),
             )
             
-        # Mettre à jour les animations des monstres
-        for monster in self.enemies_buffer:
-            should_remove = monster.update(delta_time)
-            if should_remove:
-             self.enemies_buffer.remove(monster)
+        for m in self.enemies_buffer:
+            m.on_draw()
     
         # Dessiner le personnage
         self.character.draw()
@@ -354,16 +341,14 @@ class GameView(arcade.Window):
         self.enemies_timer_before_spawn = 5
     
     def spawn_enemies(self):
-        # Obtenir des unités aléatoires pour le niveau actuel
-        unit_types = Monster.get_random_units_for_level(self.LVL)
-        for i, unit_type in enumerate(unit_types):
+        nb_enemies = random.randint(1, 3)  # Entre 1 et 3 ennemis comme avant
+        for i in range(nb_enemies):
             monster = Monster(
                 health=3,
                 x=-50 * (i+1),
                 y=170,
                 speed=60,
-                unit_type=unit_type,
-                window=self  # Pass the window instance to the monster
+                # level=self.LVL  # Utilise le niveau actuel pour la sélection des monstres
             )
             self.enemies_buffer.append(monster)
 
@@ -409,8 +394,55 @@ class GameView(arcade.Window):
                 self.feedback_timer = 1.5
                 print("Temps écoulé ! QTE échoué !")
                 
+        # Mise à jour des monstres
+        if len(self.enemies_buffer) == 0:
+            self.enemies_on_screen = False
+            if self.enemies_timer_before_spawn is None:
+                self.enemies_timer_before_spawn = self.TIME_BEFORE_SPAWN
+            
+        if self.enemies_timer_before_spawn is not None:
+            self.enemies_timer_before_spawn -= delta_time
+            if self.enemies_timer_before_spawn <= 0:
+                self.spawn_enemies()
+                self.enemies_timer_before_spawn = None
+
+        # Mise à jour des animations et positions des monstres
+        for monster in self.enemies_buffer[:]:  # Copie de la liste pour itération sûre
+            should_remove = monster.update(delta_time)
+            if should_remove:
+                if monster in self.enemies_buffer:
+                    self.enemies_buffer.remove(monster)
+                continue
+
+            # Déplacement des monstres jusqu'à leur position
+            if monster.get_distance_moved() < self.moving_distance:
+                monster.update_coordinates(monster.get_speed() * delta_time, 0)
+                # Si ce monstre atteint sa position
+                if monster.get_distance_moved() >= self.moving_distance:
+                    # Force l'état idle pour ce monstre
+                    monster.update_coordinates(0, 0)  # Arrête le mouvement
+                    # Active le combat si ce n'est pas déjà fait
+                    if not self.enemies_on_screen:
+                        self.enemies_on_screen = True
+                        self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+
+        # Gérer les attaques du héros
+        if self.enemies_on_screen and len(self.enemies_buffer) > 0:
+            if self.time_between_hero_attacks is not None:
+                self.time_between_hero_attacks -= delta_time
+                if self.time_between_hero_attacks <= 0:
+                    if len(self.enemies_buffer) > 0:
+                        self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
+                        self.MainCharacter.play_attack_animation()
+                        self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
+        self.MainCharacter.update(delta_time)
+        self.dialog_manager.update(delta_time)
+
+        if self.feedback_timer > 0:
+            self.feedback_timer -= delta_time
 
         self.MainCharacter.update(delta_time)
         # Update the dialogue manager
@@ -434,23 +466,30 @@ class GameView(arcade.Window):
                 self.spawn_enemies()
                 self.enemies_timer_before_spawn = None  # désactive le timer
 
-        # Déplacement des ennemis dans la carte
-        if not self.enemies_on_screen and len(self.enemies_buffer) > 0:
-            for m in list(self.enemies_buffer):
-                m.update_coordinates(m.get_speed() * delta_time, 0)
-                if m.get_distance_moved() >= self.moving_distance:
-                    self.enemies_on_screen = True
-                    self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+        # La logique de déplacement est maintenant gérée dans la boucle de mise à jour principale
                     
-        # Cooldown attaque héros
-        if self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks > 0:
-            self.time_between_hero_attacks -= delta_time
-        # Attaque héros sur ennemis
-        elif self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks <= 0:
-            self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
-            self.MainCharacter.play_attack_animation()
-
-            self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS  # reset le timer
+        # Logique d'attaque des ennemis
+        if self.enemies_on_screen and len(self.enemies_buffer) > 0:
+            monster = self.enemies_buffer[0]
+            
+            # Décrémenter le timer entre les attaques
+            if self.time_between_hero_attacks > 0:
+                self.time_between_hero_attacks -= delta_time
+                
+            # Si le timer est écoulé et que le monstre n'est pas en train d'attaquer
+            elif self.time_between_hero_attacks <= 0 and not monster.is_attacking:
+                # Lancer l'attaque du monstre
+                monster.play_attack_animation()
+                self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS / 2  # Délai avant la contre-attaque du héros
+                print("Monstre attaque!")  # Debug
+                
+            # Si le monstre a fini son attaque (retour à l'état idle)
+            elif not monster.is_attacking and monster.state == "idle":
+                # Le héros contre-attaque
+                self.MainCharacter.play_attack_animation()
+                monster.take_damage(1, self.enemies_buffer)
+                self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+                print("Héros contre-attaque!")  # Debug
             
         if self.game_ended and self.end_screen:
             self.end_screen.update(delta_time)

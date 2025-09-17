@@ -3,128 +3,163 @@ import random
 from animation.animation_utils import create_animation_from_frames
 from pathlib import Path
 
-# Définir les unités disponibles par niveau
-UNITS_BY_LEVEL = {
-    1: ["Goblin", "Skeleton", "EliteOrc"],  # Unités de base
-    2: ["GoblinSword", "GreatSword", "Orcrider"],  # Unités intermédiaires
-    3: ["Boss", "Werebear", "WereWolf"]  # Unités avancées
+# Liste des monstres disponibles par niveau
+MONSTER_TYPES = {
+    1: ["GoblinChauve", "Goblin", "EliteOrc"],        # Niveau 1
+    2: ["Orcrider", "Werebear", "WereWolf"],          # Niveau 2
+    3: ["Skeleton", "AxesSkeleton", "GreatSword"]     # Niveau 3
 }
 
-class Monster:
-    def __init__(self, health: int, x: int, y: int, speed: float, unit_type: str, window=None):
+class Monster():
+    def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1):
         self.health = health
         self.x = x
         self.y = y
         self.move_speed = speed
         self.distance_moved = 0
-        self.window = window  # Store the window reference for animations
+        
+        # Sélection aléatoire du type de monstre en fonction du niveau
+        self.unit_type = random.choice(MONSTER_TYPES[level])
         
         # Animation properties
-        self.state = "idle"
+        self.state = "walk"
         self.animations = {}
         self.current_sprite = None
-        self.unit_type = unit_type
-        
-        # Pour gérer l'animation d'attaque/mort
-        self.is_attacking = False
         self.is_dying = False
-        self.animation_time = 0
-        self.attack_duration = 0.5
-        self.death_duration = 0.7
-        
+        self.is_attacking = False
         self._load_animations()
-        self.set_state("idle")
+        self.set_state("walk")
         
+    def get_coordinates(self):
+        return self.x, self.y
+
+    def set_coordinates(self, x: int, y: int):
+        self.x = x
+        self.y = y
+        
+    def update_coordinates(self, delta_x: int, delta_y: int):
+        prev_x = self.x
+        prev_y = self.y
+        self.x += delta_x
+        self.y += delta_y
+        distance = abs(delta_x) + abs(delta_y)
+        self.distance_moved += distance
+        
+        # Si on a effectivement bougé (position changée)
+        if distance > 0 and not self.is_dying and not self.is_attacking:
+            self.set_state("walk")
+        # Si on est arrêté et pas en train d'attaquer/mourir
+        elif distance == 0 and not self.is_dying and not self.is_attacking:
+            self.set_state("attack")
+        
+    def get_speed(self):
+        return self.move_speed
+    
+    def get_distance_moved(self):
+        return self.distance_moved
+        
+    def take_damage(self, damage: float, monster_list=None):
+        if self.is_dying:
+            return
+            
+        self.health -= damage
+        print(f"{self.health} points de vie restants.")
+        
+        if self.health <= 0:
+            self.is_dying = True
+            self.set_state("death")
+            if monster_list and self in monster_list:
+                monster_list.remove(self)
+
+    def is_defeated(self, monster_list=None) -> bool:
+        if self.health <= 0:
+            # Supprimer de la liste si elle est fournie
+            if monster_list is not None and self in monster_list:
+                monster_list.remove(self)
+            return True
+        return False
+    
     def _load_animations(self):
+        """Charge les animations du monstre"""
         base_path = Path(__file__).resolve().parent.parent / "animation" / "cropped-assets" / self.unit_type
         
-        # Définir les chemins des animations selon le type d'unité
-        animation_folders = {
-            "idle": f"{self.unit_type}-standing" if "-" in self.unit_type else "standing",
-            "attack": f"{self.unit_type}-attack" if "-" in self.unit_type else "attack",
-            "death": f"{self.unit_type}-death" if "-" in self.unit_type else "death",
-            "walk": f"{self.unit_type}-walk" if "-" in self.unit_type else "walk"
+        folders_map = {
+            "walk": [
+                "walk",
+                f"{self.unit_type}-walk",
+                f"{self.unit_type}-Walking",
+                "Wolf-walking",
+                f"{self.unit_type}-walking"
+            ],
+            "attack": [
+                "attack",
+                f"{self.unit_type}-attack",
+                "Wolf-attack",
+                f"{self.unit_type}-Attack",
+                f"{self.unit_type}-attacks"
+            ],
+            "death": [
+                "death",
+                "Death",
+                f"{self.unit_type}-death",
+                "Wolf-death",
+                f"{self.unit_type}-Death"
+            ],
+            "idle": [
+                "stand",
+                "standing",
+                f"{self.unit_type}-stand",
+                f"{self.unit_type}-standing",
+                "Wolf-standing",
+                f"{self.unit_type}-Standing"
+            ]
         }
         
-        # Charger chaque animation
-        for anim_type, folder in animation_folders.items():
-            anim_path = base_path / folder
-            if anim_path.exists():
-                # Récupérer tous les fichiers PNG du dossier
-                frame_files = sorted([f.name for f in anim_path.glob("*.png")])
-                if frame_files:
-                    self.animations[anim_type] = create_animation_from_frames(
-                        frame_paths=frame_files,
-                        base_path=str(anim_path),
-                        scale=3.0,
-                        position_x=self.x,
-                        position_y=self.y
-                    )
-        
+        for anim_type, possible_folders in folders_map.items():
+            for folder in possible_folders:
+                folder_path = base_path / folder
+                if folder_path.exists():
+                    frame_files = sorted([f.name for f in folder_path.glob("*.png")])
+                    if frame_files:
+                        self.animations[anim_type] = create_animation_from_frames(
+                            frame_paths=frame_files,
+                            base_path=str(folder_path),
+                            scale=3.0,
+                            position_x=self.x,
+                            position_y=self.y
+                        )
+                        break
+
     def set_state(self, new_state):
         """Change l'état et l'animation du monstre"""
         if new_state in self.animations:
             self.state = new_state
             self.current_sprite = self.animations[new_state]
-            
+
     def update(self, delta_time):
-        """Met à jour l'animation et l'état"""
+        """Met à jour l'animation"""
         if self.current_sprite:
             self.current_sprite.update_animation(delta_time)
-            
-            # Update the sprite position to match the monster position
             self.current_sprite.center_x = self.x
             self.current_sprite.center_y = self.y
             
-            # Gérer l'animation d'attaque
-            if self.is_attacking:
-                self.animation_time += delta_time
-                if self.animation_time >= self.attack_duration:
-                    self.is_attacking = False
-                    self.animation_time = 0
-                    self.set_state("idle")
-                    
-            # Gérer l'animation de mort
-            if self.is_dying:
-                self.animation_time += delta_time
-                if self.animation_time >= self.death_duration:
-                    self.is_dying = False
-                    self.animation_time = 0
-                    return True  # Le monstre peut être supprimé
-                    
-        return False
+            # Gestion de l'animation d'attaque
+            if self.is_attacking and self.state == "attack":
+                # Si l'animation d'attaque est terminée
+                if hasattr(self.current_sprite, 'frame_num'):
+                    if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
+                        self.is_attacking = False
+                        self.set_state("idle")
             
-    def draw(self):
+            # Gestion de l'animation de mort
+            if self.is_dying and self.state == "death":
+                # Si l'animation de mort est terminée
+                if hasattr(self.current_sprite, 'frame_num'):
+                    if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
+                        return True
+        return False
+
+    def on_draw(self):
         """Dessine le monstre"""
         if self.current_sprite:
             self.current_sprite.draw()
-            
-    def play_attack_animation(self):
-        """Lance l'animation d'attaque"""
-        if not self.is_attacking and not self.is_dying:
-            self.is_attacking = True
-            self.animation_time = 0
-            self.set_state("attack")
-            
-    def play_death_animation(self):
-        """Lance l'animation de mort"""
-        if not self.is_dying:
-            self.is_dying = True
-            self.animation_time = 0
-            self.set_state("death")
-
-    def take_damage(self, damage: float, monster_list=None):
-        self.health -= damage
-        if self.health <= 0:
-            self.play_death_animation()
-        else:
-            # Jouer une animation de hit si disponible
-            if "hurt" in self.animations:
-                self.set_state("hurt")
-                
-    @staticmethod
-    def get_random_units_for_level(level: int, count: int = 3):
-        """Retourne une liste d'unités aléatoires pour un niveau donné"""
-        if level in UNITS_BY_LEVEL:
-            return random.sample(UNITS_BY_LEVEL[level], count)
-        return []
