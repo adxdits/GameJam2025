@@ -3,6 +3,7 @@ import random
 from larbin import Character
 from casts import Cast
 from entities import Monster
+from views.dialog_manager import DialogManager
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 800
@@ -95,6 +96,13 @@ class GameView(arcade.Window):
         
         self.cast = Cast()
         self.LVL = 3
+
+        self.dialog_manager = DialogManager()
+        self.hero_mood = 2  # Exemple : humeur initiale
+
+        # Timer for random dialogues
+        self.dialog_timer = 10  # Time between dialogues (10 seconds)
+        self.dialog_active = False  # Is a dialogue currently active?
         
         # --QTE:
         self.qte_active_timer = 0  # Timer pour la durée du QTE
@@ -277,6 +285,8 @@ class GameView(arcade.Window):
     
         # Dessiner le personnage
         self.character.draw()
+        # Dessiner le dialogue
+        self.dialog_manager.draw()
 
     def est_coherent(self, type_mot: str, cible: str) -> bool:
         """Vérifie si la combinaison type + cible a du sens."""
@@ -333,12 +343,18 @@ class GameView(arcade.Window):
                 if val == 1:
                     self.QTE_PHASE = False
                     self.character.play_attack_animation()
+                    if self.hero_mood < 3:
+                        self.hero_mood += 1
+                    self.dialog_manager.get_dialog(self.hero_mood)
                     print("QTE réussi ! Sort lancé !")
                     # Lancer l'animation d'attaque
                 elif val == -1:
                     self.QTE_PHASE = False
                     self.feedback_text = "Ohh..."
                     self.feedback_timer = 1.5
+                    if self.hero_mood > 0:
+                        self.hero_mood -= 1 
+                    self.dialog_manager.get_dialog(self.hero_mood)
                     print("QTE échoué !")
                 else:
                     print("QTE continue..")
@@ -356,6 +372,10 @@ class GameView(arcade.Window):
                 
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
+
+
+        # Update the dialogue manager
+        self.dialog_manager.update(delta_time)
 
         if self.feedback_timer > 0:
             self.feedback_timer -= delta_time
