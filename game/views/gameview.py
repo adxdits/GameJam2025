@@ -3,9 +3,11 @@ import random
 from larbin import Character
 from casts import Cast
 from entities import Monster
+from views.dialog_manager import DialogManager
+from endgame import EndGame
 
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Détection des touches"
 parchment_texture = arcade.load_texture("../assets/sprites/parchemin.png")
 CUSTOM_FONT = "../assets/fonts/DigitalDisco.ttf"
@@ -95,6 +97,15 @@ class GameView(arcade.Window):
         
         self.cast = Cast()
         self.LVL = 3
+        self.end_screen = None
+        self.game_ended = False
+
+        self.dialog_manager = DialogManager()
+        self.hero_mood = 2  # Exemple : humeur initiale
+
+        # Timer for random dialogues
+        self.dialog_timer = 10  # Time between dialogues (10 seconds)
+        self.dialog_active = False  # Is a dialogue currently active?
         
         # --QTE:
         self.qte_active_timer = 0  # Timer pour la durée du QTE
@@ -277,6 +288,13 @@ class GameView(arcade.Window):
     
         # Dessiner le personnage
         self.character.draw()
+        # Dessiner le dialogue
+        self.dialog_manager.draw()
+        
+        # Dessiner l'écran de fin si le jeu est terminé
+        if self.end_screen:
+            self.clear()
+            self.end_screen.draw()
 
     def est_coherent(self, type_mot: str, cible: str) -> bool:
         """Vérifie si la combinaison type + cible a du sens."""
@@ -333,15 +351,26 @@ class GameView(arcade.Window):
                 if val == 1:
                     self.QTE_PHASE = False
                     self.character.play_attack_animation()
+                    if self.hero_mood < 3:
+                        self.hero_mood += 1
+                    self.dialog_manager.get_dialog(self.hero_mood)
                     print("QTE réussi ! Sort lancé !")
                     # Lancer l'animation d'attaque
                 elif val == -1:
                     self.QTE_PHASE = False
                     self.feedback_text = "Ohh..."
                     self.feedback_timer = 1.5
+                    if self.hero_mood > 0:
+                        self.hero_mood -= 1 
+                    self.dialog_manager.get_dialog(self.hero_mood)
                     print("QTE échoué !")
+                    self.show_end_screen()  # Défaite
                 else:
                     print("QTE continue..")
+                    
+    def show_end_screen(self):
+        self.game_ended = True
+        # self.end_screen = EndGame(self, game_results)
                 
     def on_update(self, delta_time):
         if not self.QTE_PHASE:
@@ -356,6 +385,10 @@ class GameView(arcade.Window):
                 
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
+
+
+        # Update the dialogue manager
+        self.dialog_manager.update(delta_time)
 
         if self.feedback_timer > 0:
             self.feedback_timer -= delta_time
@@ -390,6 +423,9 @@ class GameView(arcade.Window):
         elif self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks <= 0:
             self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
             self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS  # reset le timer
+            
+        if self.game_ended and self.end_screen:
+            self.end_screen.update(delta_time)
             
         
 if __name__ == "__main__":
