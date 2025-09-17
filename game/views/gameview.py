@@ -67,7 +67,6 @@ class GameView(arcade.Window):
                 elif val == -1:
                     self.QTE_PHASE = False
                     print("QTE échoué !")
-                    self.character.play_attack_animation()
                 else:
                     print("QTE continue..")
                 
