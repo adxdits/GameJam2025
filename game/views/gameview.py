@@ -66,56 +66,70 @@ ARROW = {
     arcade.key.RIGHT: "→",
 }
 
+BACKGROUNDS = [
+    "../assets/Backgrounds/Lvl1.png",
+    "../assets/Backgrounds/Lvl2.png",
+    "../assets/Backgrounds/Lvl3.png",
+    "../assets/Backgrounds/Lvl4.png",
+]
+
+SUCCESS_STAGES = [
+    15,
+    45,
+    100
+]
+
 # =========================
 
 class GameView(arcade.Window):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen = True)
-        
-        # --Entitées:
-        # Monstres/Ennemies
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen=True)
+
+        # -- Paramètres généraux --
+        self.LVL = 0  # Les stades/niveaux du jeu
+        self.end_screen = None
+        self.game_ended = False
+        self.count_success = 0  # Nombre de QTE réussis
+
+        # -- Background --
+        self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
+        self.bg_w, self.bg_h = self.bg_tex.width, self.bg_tex.height
+
+        # -- Entitées: Monstres/Ennemies --
         self.enemies_timer_before_spawn = None
         self.enemies_buffer = []
         self.enemies_timer_on_screen = 0
         self.enemies_on_screen = False
-        self.moving_distance = 400 # Distance que doit parcourir un ennemi/monstre
-        
-        self.time_between_hero_attacks = None
+        self.moving_distance = 400  # Distance que doit parcourir un ennemi/monstre
 
+        # -- UI --
         self.UI_W, self.UI_H = 1920, 1080  # résolution virtuelle de référence
         self.ui_scale = 1.0
         self.ui_offx = 0
         self.ui_offy = 0
 
+        # -- Entitées: Héros --
         self.character = Character(self)
+        self.time_between_hero_attacks = None
+        self.DELAY_HERO_ATTACKS = 1.0
 
-        self.bg_tex = arcade.load_texture("../assets/Backgrounds/Lvl1.png")
-        self.bg_w, self.bg_h = self.bg_tex.width, self.bg_tex.height
-
-        self.current_words = []
-        self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
+        # -- QTE --
         self.cast = Cast()
         self.QTE_PHASE = False
-        self.TIME_BEFORE_SPAWN = 2.0
-        self.DELAY_HERO_ATTACKS = 1.0
-        
-        
-        self.cast = Cast()
-        self.LVL = 3
-        self.end_screen = None
-        self.game_ended = False
-
-        self.dialog_manager = DialogManager()
-        self.hero_mood = 2  # Exemple : humeur initiale
-
-        # Timer for random dialogues
-        self.dialog_timer = 10  # Time between dialogues (10 seconds)
-        self.dialog_active = False  # Is a dialogue currently active?
-        
-        # --QTE:
         self.qte_active_timer = 0  # Timer pour la durée du QTE
+        self.TIME_BEFORE_SPAWN = 2.0
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
         self.feedback_timer = 0.0
+        
+        # -- Dialogues --
+        self.dialog_manager = DialogManager()
+        self.hero_mood = 2  # Exemple : humeur initiale
+        self.dialog_timer = 10  # Time between dialogues (10 seconds)
+        self.dialog_active = False  # Is a dialogue currently active?
+
+        # -- Mots/Combos --
+        self.current_words = []
+        self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
 
     def _begin_ui(self):
         # scale uniforme (fit) pour conserver le ratio
@@ -341,7 +355,7 @@ class GameView(arcade.Window):
             return False
         return True
     
-    def generer_phrase(self, niveau):
+    def generer_phrase(self):
         type_mot = random.choice(list(TYPES.keys()))
         qualitatif = random.choice(list(QUALIFICATIFS.keys()))
         cible = random.choice(list(CIBLES.keys()))
@@ -351,11 +365,11 @@ class GameView(arcade.Window):
             type_mot = random.choice(list(TYPES.keys()))
             cible = random.choice(list(CIBLES.keys()))
 
-        if niveau == 1:
+        if self.LVL == 0:
             return [type_mot]
-        elif niveau == 2:
+        elif self.LVL == 1:
             return [type_mot, qualitatif]
-        elif niveau == 3:
+        elif self.LVL >= 2:
             return [type_mot, qualitatif, cible]
         else:
             raise ValueError("Le niveau doit être 1, 2 ou 3.")
@@ -363,7 +377,7 @@ class GameView(arcade.Window):
     def set_combo_data(self, combinations: dict, words: list):
         self.current_words = words[:]
         self._add_seen_words(words)
-        self.qte_active_timer = 3 * (2+self.LVL-1)  # 3 / 5 / 7 secondes pour faire le QTE
+        self.qte_active_timer = 3 * (2+self.LVL)  # 3 / 5 / 7 secondes pour faire le QTE
         self.cast.set_data_combo(combinations, words, self.LVL)
         self.QTE_PHASE = True  # On entre en phase de QTE
         print("Phase de QTE commencée !" + str(self.QTE_PHASE))
@@ -372,7 +386,7 @@ class GameView(arcade.Window):
         self.enemies_timer_before_spawn = 5
     
     def spawn_enemies(self):
-        # FAIRE UN SYSTEM ALEATOIRE POUR LES SPRITES DES ENEMIES
+        # FAIRE UN SYSTEM ALEATOIRE POUR LES SPRITES DES ENNEMIES
         nb_enemies = random.randint(1, 3)
         for i in range(nb_enemies):
             self.enemies_buffer.append(Monster(3, -50 * (i+1), 170, 60))
@@ -390,6 +404,11 @@ class GameView(arcade.Window):
                     if self.hero_mood < 3:
                         self.hero_mood += 1
                     self.dialog_manager.get_dialog(self.hero_mood)
+                    self.count_success += 1
+                    if self.count_success >= SUCCESS_STAGES[self.LVL]:
+                        if self.LVL < 4:
+                            self.LVL += 1
+                            self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
                     print("QTE réussi ! Sort lancé !")
                     # Lancer l'animation d'attaque
                 elif val == -1:
@@ -408,7 +427,7 @@ class GameView(arcade.Window):
                 
     def on_update(self, delta_time):
         if not self.QTE_PHASE:
-             self.set_combo_data(LISTES, self.generer_phrase(self.LVL))
+             self.set_combo_data(LISTES, self.generer_phrase())
         if self.QTE_PHASE:
             self.qte_active_timer -= delta_time
             if self.qte_active_timer <= 0:
@@ -417,7 +436,6 @@ class GameView(arcade.Window):
                 
         # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
-
 
         # Update the dialogue manager
         self.dialog_manager.update(delta_time)

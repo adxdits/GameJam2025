@@ -19,7 +19,7 @@ class Cast:
         self.current_combo.extend(self.combinations["TYPES"][words[0]])
         if lvl >= 2: 
             self.current_combo.extend(self.combinations["QUALIFICATIFS"][words[1]])
-        if lvl == 3: 
+        if lvl >= 3: 
             self.current_combo.extend(self.combinations["CIBLES"][words[2]])
         
     def check_qte(self, key):
