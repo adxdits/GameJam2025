@@ -40,6 +40,3 @@ class Cast:
     
     def print_stratagem_qte(self): # Appel la fonction d'affichage des touches sur l'écran OU appel la fonction de mise à jour de la liste affiché à l'écran
         pass
-    
-    
-    # COMMENT LIMITER LE TEMPS DE SAISIE?

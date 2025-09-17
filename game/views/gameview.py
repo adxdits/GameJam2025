@@ -2,9 +2,10 @@ import arcade
 import random
 from larbin import Character
 from casts import Cast
+from entities import Monster
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Détection des touches"
 parchment_texture = arcade.load_texture("../assets/sprites/parchemin.png")
 CUSTOM_FONT = "../assets/fonts/DigitalDisco.ttf"
@@ -68,6 +69,16 @@ ARROW = {
 class GameView(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen = True)
+        
+        # --Entitées:
+        # Monstres/Ennemies
+        self.enemies_timer_before_spawn = None
+        self.enemies_buffer = []
+        self.enemies_timer_on_screen = 0
+        self.enemies_on_screen = False
+        self.moving_distance = 400 # Distance que doit parcourir un ennemi/monstre
+        
+        self.time_between_hero_attacks = None
 
         self.character = Character(self)
 
@@ -78,7 +89,14 @@ class GameView(arcade.Window):
         self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
         self.cast = Cast()
         self.QTE_PHASE = False
+        self.TIME_BEFORE_SPAWN = 2.0
+        self.DELAY_HERO_ATTACKS = 1.0
+        
+        
+        self.cast = Cast()
         self.LVL = 3
+        
+        # --QTE:
         self.qte_active_timer = 0  # Timer pour la durée du QTE
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
         self.feedback_timer = 0.0
@@ -253,6 +271,9 @@ class GameView(arcade.Window):
                 align="center",
                 width=int(self.width * 0.8),
             )
+            
+        for m in self.enemies_buffer:
+            m.on_draw()
     
         # Dessiner le personnage
         self.character.draw()
@@ -292,6 +313,15 @@ class GameView(arcade.Window):
         self.cast.set_data_combo(combinations, words, self.LVL)
         self.QTE_PHASE = True  # On entre en phase de QTE
         print("Phase de QTE commencée !" + str(self.QTE_PHASE))
+        
+    def set_timer_spawn_enemies(self):
+        self.enemies_timer_before_spawn = 5
+    
+    def spawn_enemies(self):
+        # FAIRE UN SYSTEM ALEATOIRE POUR LES SPRITES DES ENEMIES
+        nb_enemies = random.randint(1, 3)
+        for i in range(nb_enemies):
+            self.enemies_buffer.append(Monster(3, -50 * (i+1), 170, 60))
 
     def on_key_press(self, key, modifiers):
         # Si on est en phase de QTE
@@ -329,8 +359,39 @@ class GameView(arcade.Window):
 
         if self.feedback_timer > 0:
             self.feedback_timer -= delta_time
-        # return super().on_update(delta_time)
 
+        # --Entités:
+        # Fin de vague d'ennemis → relance un timer
+        if len(self.enemies_buffer) == 0 and self.enemies_timer_before_spawn is None:
+            self.enemies_on_screen = False
+            self.enemies_timer_before_spawn = self.TIME_BEFORE_SPAWN  # relance une nouvelle vague
+
+        # Décrémentation du timer avant spawn
+        if not self.enemies_on_screen and self.enemies_timer_before_spawn is not None:
+            self.enemies_timer_before_spawn -= delta_time
+
+            # Quand le timer atteint zéro ou moins --> spawn ennemis
+            if self.enemies_timer_before_spawn <= 0:
+                self.spawn_enemies()
+                self.enemies_timer_before_spawn = None  # désactive le timer
+
+        # Déplacement des ennemis dans la carte
+        if not self.enemies_on_screen and len(self.enemies_buffer) > 0:
+            for m in list(self.enemies_buffer):
+                m.update_coordinates(m.get_speed() * delta_time, 0)
+                if m.get_distance_moved() >= self.moving_distance:
+                    self.enemies_on_screen = True
+                    self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+                    
+        # Cooldown attaque héros
+        if self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks > 0:
+            self.time_between_hero_attacks -= delta_time
+        # Attaque héros sur ennemis
+        elif self.enemies_on_screen and len(self.enemies_buffer) > 0 and self.time_between_hero_attacks <= 0:
+            self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
+            self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS  # reset le timer
+            
+        
 if __name__ == "__main__":
     GameView()
     arcade.run()
