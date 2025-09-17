@@ -1,6 +1,5 @@
 import arcade
 
-
 class Monster():
     def __init__(self, health: int, x: int, y: int, speed: float):
         self.health = health

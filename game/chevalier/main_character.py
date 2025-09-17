@@ -2,12 +2,16 @@ import arcade
 from animation.animation_utils import create_animation_from_frames
 from pathlib import Path
 
+SOUND_PATH = "../assets/Sounds/"
 
 class MainCharacter:
     def __init__(self, window):
         self.window = window
         self.state = "idle"
         self.animations = {}
+
+        # -- Sounds --
+        self.attack_sound = arcade.load_sound(SOUND_PATH + "attack.mp3")
         
         # Position initiale
         self.x = 800
@@ -96,3 +100,4 @@ class MainCharacter:
             self.is_attacking = True
             self.attack_time = 0
             self.set_state("attack")
+            arcade.play_sound(self.attack_sound)

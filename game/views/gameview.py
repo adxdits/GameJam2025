@@ -13,6 +13,8 @@ SCREEN_TITLE = "Détection des touches"
 parchment_texture = arcade.load_texture("../assets/sprites/parchemin.png")
 CUSTOM_FONT = "../assets/fonts/DigitalDisco.ttf"
 arcade.load_font(CUSTOM_FONT)
+SOUND_PATH = "../assets/Sounds/"
+arcade.load_sound(SOUND_PATH + "music.mp3")
 
 # =========================
 # Données
@@ -85,6 +87,23 @@ SUCCESS_STAGES = [
 class GameView(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, fullscreen=True)
+
+        # -- Sounds --
+        self.music = arcade.load_sound(SOUND_PATH + "music.mp3")
+        self.gling_sound = arcade.load_sound(SOUND_PATH + "gling.mp3")
+        self.Enerve1_sound = arcade.load_sound(SOUND_PATH + "Enerve_1.mp3")
+        self.Enerve2_sound = arcade.load_sound(SOUND_PATH + "Enerve_2.mp3")
+        self.Enerve3_sound = arcade.load_sound(SOUND_PATH + "Enerve_3.mp3")
+        self.Neutre1_sound = arcade.load_sound(SOUND_PATH + "Neutre_1.mp3")
+        self.Neutre2_sound = arcade.load_sound(SOUND_PATH + "Neutre_2.mp3")
+        self.Neutre3_sound = arcade.load_sound(SOUND_PATH + "Neutre_3.mp3")
+        self.Happy1_sound = arcade.load_sound(SOUND_PATH + "Happy_1.mp3")
+        self.Happy2_sound = arcade.load_sound(SOUND_PATH + "Happy_2.mp3")
+        self.Happy3_sound = arcade.load_sound(SOUND_PATH + "Happy_3.mp3")
+        self.Happy4_sound = arcade.load_sound(SOUND_PATH + "Happy_4.mp3")
+        self.Happy5_sound = arcade.load_sound(SOUND_PATH + "Happy_5.mp3")
+
+        player = arcade.play_sound(self.music, looping=True)
 
         # -- Paramètres généraux --
         self.LVL = 0  # Les stades/niveaux du jeu
@@ -464,6 +483,8 @@ class GameView(arcade.Window):
                             self.LVL += 1
                             self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
                     print("QTE réussi ! Sort lancé !")
+                    arcade.play_sound(self.gling_sound)
+                    arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
                     # Lancer l'animation d'attaque
                 elif val == -1:
                     self.QTE_PHASE = False
@@ -472,6 +493,7 @@ class GameView(arcade.Window):
                     self.dialog_manager.get_dialog(self.hero_mood)
                     print("QTE échoué !")
                     self.show_end_screen()  # Défaite
+                    arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
                 else:
                     print("QTE continue..")
                     
