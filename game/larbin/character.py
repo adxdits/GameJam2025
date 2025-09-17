@@ -11,7 +11,7 @@ class Character:
         
         # Position initiale
         self.x = 1200
-        self.y = 150
+        self.y = 200
         self.target_v_height = 800
         
         # Pour gérer l'animation d'attaque
@@ -33,8 +33,8 @@ class Character:
             base_path=str(base_path / "Priest-standing"),
             scale=7.0,
             flip_horizontal=True,
-            position_x=self.x,
-            position_y=self.y
+            position_x=0,
+            position_y=0
         )
         
         self.animations["attack"] = create_animation_from_frames(
@@ -43,8 +43,8 @@ class Character:
             base_path=str(base_path / "Priest-Healing"),
             scale=7.0,
             flip_horizontal=True,
-            position_x=self.x,
-            position_y=self.y
+            position_x=0,
+            position_y=0
         )
             
     def set_state(self, new_state):
