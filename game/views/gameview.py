@@ -82,6 +82,11 @@ class GameView(arcade.Window):
         
         self.time_between_hero_attacks = None
 
+        self.UI_W, self.UI_H = 1920, 1080  # résolution virtuelle de référence
+        self.ui_scale = 1.0
+        self.ui_offx = 0
+        self.ui_offy = 0
+
         self.character = Character(self)
 
         self.bg_tex = arcade.load_texture("../assets/Backgrounds/Lvl1.png")
@@ -112,6 +117,19 @@ class GameView(arcade.Window):
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
         self.feedback_timer = 0.0
 
+    def _begin_ui(self):
+        # scale uniforme (fit) pour conserver le ratio
+        s = min(self.width / self.UI_W, self.height / self.UI_H)
+        self.ui_scale = s
+        self.ui_offx = (self.width  - self.UI_W * s) / 2
+        self.ui_offy = (self.height - self.UI_H * s) / 2
+
+    def _sx(self, x): return int(self.ui_offx + x * self.ui_scale)
+    def _sy(self, y): return int(self.ui_offy + y * self.ui_scale)
+    def _sw(self, w): return int(w * self.ui_scale)
+    def _sh(self, h): return int(h * self.ui_scale)
+    def _sf(self, size): return max(1, int(size * self.ui_scale))  # font size
+
     def _find_sequence_for_word(self, word: str):
         """Retourne la séquence (liste de 4 keycodes) pour un mot."""
         if word in TYPES: return TYPES[word]
@@ -137,27 +155,31 @@ class GameView(arcade.Window):
                 buckets["CIBLES"].append(w)
         return buckets
 
-    def _draw_section(self, title: str, words: list, x_left: int, y_top: int, width: int, height: int):
-        """Titre + liste 'mot : enchaînement' dans un rectangle, avec 2 polices (mot vs flèches)."""
+    def _draw_section(self, title, words, x_left, y_top, width, height):
         y_cursor = y_top
-        title_h = 30
-        font_size_word = 16      # taille du mot
-        font_size_arrows = 14    # taille des flèches
-        line_h = int(font_size_word * 1.15)
+        title_h = 40
 
-        # Titre 
+        font_size_word   = self._sf(23)
+        font_size_arrows = self._sf(23)
+        line_h = int(font_size_word * 1.8)
+
+        # Titre
         arcade.draw_text(
             title,
-            x_left + width // 2, y_cursor - title_h // 2,
-            arcade.color.DARK_BROWN, 18,
-            anchor_x="center", anchor_y="center",
-            width=width, align="center",
+            self._sx(x_left + width // 2),
+            self._sy(y_cursor - title_h // 2),
+            arcade.color.DARK_BROWN,
+            self._sf(18),
+            anchor_x="center",
+            anchor_y="center",
+            width=self._sw(width),
+            align="center",
+            font_name="DigitalDisco"
         )
         y_cursor -= (title_h + 6)
 
-        # Colonnes (60% pour le mot, 40% pour les flèches)
         col_word_w = int(width * 0.60)
-        col_arrow_x = x_left + col_word_w + 8  # petit espace entre colonnes
+        col_arrow_x = x_left + col_word_w + 8
 
         for w in words:
             seq = self._find_sequence_for_word(w)
@@ -167,28 +189,31 @@ class GameView(arcade.Window):
             if y_cursor < (y_top - height):
                 break
 
-            # 1) MOT dans ta police perso
+            # Mot (font custom)
             arcade.draw_text(
                 w,
-                x_left, y_cursor,
+                self._sx(x_left), self._sy(y_cursor),
                 arcade.color.BLACK,
                 font_size_word,
-                width=col_word_w, 
+                width=self._sw(col_word_w),
                 align="left",
-                anchor_x="left", 
+                anchor_x="left",
                 anchor_y="baseline",
                 font_name="DigitalDisco",
             )
 
-            # 2) FLÈCHES dans la police par défaut (pas de font_name)
+            # Flèches (font par défaut)
             arcade.draw_text(
                 arrows,
-                col_arrow_x, y_cursor,
-                arcade.color.BLACK, font_size_arrows,
-                width=width - col_word_w - 8, align="left",
-                anchor_x="left", anchor_y="baseline",
-                # font_name absent → fallback système qui affiche bien ↑↓←→
+                self._sx(col_arrow_x), self._sy(y_cursor),
+                arcade.color.BLACK,
+                font_size_arrows,
+                width=self._sw(width - col_word_w - 8),
+                align="left",
+                anchor_x="left",
+                anchor_y="baseline",
             )
+
 
 
     def _add_seen_words(self, words: list):
@@ -202,27 +227,34 @@ class GameView(arcade.Window):
 
     def on_draw(self):
         self.clear()
+        self._begin_ui()
 
-        scale = max(self.width / self.bg_w, self.height / self.bg_h)
+        virt_cover = max(self.UI_W / self.bg_w, self.UI_H / self.bg_h)
+        final_scale = virt_cover * self.ui_scale  # important: * ui_scale
+
         arcade.draw_scaled_texture_rectangle(
-            self.width // 2,
-            self.height // 2,
+            self._sx(self.UI_W // 2),
+            self._sy(self.UI_H // 2),
             self.bg_tex,
-            scale,
+            final_scale,
         )
 
-        parchment_width = max(1, int(self.width * 0.45))  # 1/3 de la largeur de l’écran
-        parchment_height = max(1, int(self.height + 400))
+        parchment_width = max(1, int(self.UI_W * 0.45))  # 1/3 de la largeur de l’écran
+        parchment_height = max(1, int(self.UI_H + 400))
 
-        x = self.width - parchment_width // 3 + 50  # centré à droite
-        y = self.height // 2                   # centré verticalement
+        x = self.UI_W - parchment_width // 3 + 50  # centré à droite
+        y = self.UI_H // 2                   # centré verticalement
 
         arcade.draw_texture_rectangle(
-            x, y, parchment_width, parchment_height, parchment_texture
+            self._sx(x), 
+            self._sy(y),
+            self._sw(parchment_width), 
+            self._sh(parchment_height),
+            parchment_texture
         )
 
         # Zone texte "safe" dans le parchemin
-        margin_left = int(parchment_width * 0.23)
+        margin_left = int(parchment_width * 0.26)
         margin_right = int(parchment_width * 0.25)
         margin_top = int(parchment_height * 0.19)
         margin_bottom = int(parchment_height * 0.17)
@@ -236,19 +268,19 @@ class GameView(arcade.Window):
         # Si QTE actif : afficher la phrase + les enchaînements
         if self.QTE_PHASE and self.current_words:
             # 1) Phrase centrée sur la partie gauche (hors parchemin)
-            phrase_width = max(1, int(self.width - parchment_width - 80))
-            left_area_center_x = (self.width - parchment_width) // 2
+            phrase_width = max(1, int(self.UI_W - parchment_width - 80))
+            left_area_center_x = (self.UI_W - parchment_width) // 2
             phrase = " ".join(self.current_words)
             arcade.draw_text(
                 phrase,
-                left_area_center_x,
-                self.height // 2,
+                self._sx(left_area_center_x),
+                self._sy(self.UI_H // 2),
                 arcade.color.WHITE,
-                36,
+                self._sf(36),
                 anchor_x="center",
                 anchor_y="center",
                 align="center",
-                width=phrase_width,
+                width=self._sw(phrase_width),
             )
 
             # 2) Sur le parchemin : "mot : enchainement"
@@ -272,15 +304,15 @@ class GameView(arcade.Window):
         if self.feedback_timer > 0 and self.feedback_text:
             arcade.draw_text(
                 self.feedback_text,
-                self.width // 2,
-                int(self.height * 0.75),
+                self.UI_W // 2,
+                int(self.UI_H * 0.75),
                 arcade.color.GO_GREEN if self.feedback_text.startswith("Réussi") else arcade.color.RED_ORANGE,
                 64,
                 anchor_x="center",
                 anchor_y="center",
                 bold=True,
                 align="center",
-                width=int(self.width * 0.8),
+                width=int(self.UI_W * 0.8),
             )
             
         for m in self.enemies_buffer:
@@ -358,8 +390,6 @@ class GameView(arcade.Window):
                     # Lancer l'animation d'attaque
                 elif val == -1:
                     self.QTE_PHASE = False
-                    self.feedback_text = "Ohh..."
-                    self.feedback_timer = 1.5
                     if self.hero_mood > 0:
                         self.hero_mood -= 1 
                     self.dialog_manager.get_dialog(self.hero_mood)
@@ -379,8 +409,6 @@ class GameView(arcade.Window):
             self.qte_active_timer -= delta_time
             if self.qte_active_timer <= 0:
                 self.QTE_PHASE = False
-                self.feedback_text = "trop lent !"
-                self.feedback_timer = 1.5
                 print("Temps écoulé ! QTE échoué !")
                 
         # Mettre à jour l'animation du personnage

@@ -10,8 +10,9 @@ class Character:
         self.animations = {}
         
         # Position initiale
-        self.x = 900
-        self.y = 200
+        self.x = 1200
+        self.y = 150
+        self.target_v_height = 800
         
         # Pour gérer l'animation d'attaque
         self.attack_duration = 0.5  # Durée de l'animation d'attaque
@@ -66,9 +67,29 @@ class Character:
                     self.set_state("idle")
             
     def draw(self):
-        """Dessine le personnage"""
-        if self.current_sprite:
-            self.current_sprite.draw()
+        """Dessine avec conversion virtuel -> écran + scale UI."""
+        if not self.current_sprite:
+            return
+
+        # Position (virtuel -> écran)
+        cx = self.window._sx(self.x)
+        cy = self.window._sy(self.y)
+
+        # Échelle calculée pour que la texture ait target_v_height en VIRTUEL,
+        # puis on applique le ui_scale pour l’écran.
+        tex = self.current_sprite.texture  # frame courante
+        if tex and tex.height > 0:
+            scale_virtual = self.target_v_height / tex.height
+        else:
+            scale_virtual = 1.0
+
+        sc = scale_virtual * self.window.ui_scale
+
+        self.current_sprite.center_x = cx
+        self.current_sprite.center_y = cy
+        self.current_sprite.scale = sc
+
+        self.current_sprite.draw()
             
     def play_attack_animation(self):
         """Lance l'animation d'attaque"""
