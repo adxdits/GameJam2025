@@ -522,7 +522,9 @@ class GameView(arcade.Window):
         self.qte_active_timer = 3 * (2+self.LVL)  # 3 / 5 / 7 secondes pour faire le QTE
         self.cast.set_data_combo(combinations, words, self.LVL)
         self.QTE_PHASE = True  # On entre en phase de QTE
+        arcade.play_sound(random.choice([self.Neutre1_sound, self.Neutre2_sound, self.Neutre3_sound]), volume=10)
         print("Phase de QTE commencée !" + str(self.QTE_PHASE))
+
         
     def set_timer_spawn_enemies(self):
         self.enemies_timer_before_spawn = 5
@@ -580,7 +582,6 @@ class GameView(arcade.Window):
                             self.LVL += 1
                             self.start_level_transition(self.LVL + 1)  # Show "NIVEAU 2", "NIVEAU 3", etc.
                             self.count_success = 0  # Reset success counter for new level
-                            self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
                             self.enemies_buffer.clear()
                     print("QTE réussi ! Sort lancé !")
                     arcade.play_sound(self.gling_sound)

@@ -19,6 +19,8 @@ class Monster():
 
         self.eattack_sound = arcade.load_sound(SOUND_PATH + "eattack.mp3")
         self.death_sound = arcade.load_sound(SOUND_PATH + "death.mp3")
+        self.deathboss_sound = arcade.load_sound(SOUND_PATH + "deathboss.mp3")
+
 
         self.target_v_height = 800
 
@@ -31,7 +33,9 @@ class Monster():
         # Sélection aléatoire du type de monstre en fonction du niveau
         self.unit_type = random.choice(MONSTER_TYPES[level])
 
-        if "Boss" in self.unit_type: self.target_v_height = 2000
+        if "Boss" in self.unit_type: 
+            self.target_v_height = 2000
+            self.death_sound = arcade.load_sound(SOUND_PATH + "deathboss.mp3")
                 
         # Animation properties
         self.state = "walk"
