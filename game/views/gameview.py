@@ -77,9 +77,9 @@ BACKGROUNDS = [
 ]
 
 SUCCESS_STAGES = [
-    1,
-    1,
-    1
+    7,
+    6,
+    5
 ]
 
 # =========================
@@ -142,7 +142,7 @@ class GameView(arcade.Window):
         # -- QTE --
         self.cast = Cast()
         self.QTE_PHASE = False
-        self.QTE_PHASE_DELAY = 1.0
+        self.QTE_PHASE_DELAY = 0.1
         self.qte_active_timer = 0  # Timer pour la durée du QTE
         self.qte_delay_timer = 0  # Timer de pause entre deux QTE
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
@@ -160,7 +160,7 @@ class GameView(arcade.Window):
         
         # -- Dialogues --
         self.initial_dialog_shown = False
-        self.initial_dialog_timer = 8.0  # Temps d'affichage du dialogue initial
+        self.initial_dialog_timer = 6.0  # Temps d'affichage du dialogue initial
         
         # -- Level Transition --
         self.showing_level_transition = False
@@ -542,7 +542,7 @@ class GameView(arcade.Window):
         # Si niveau du Boss
         if self.LVL == 3:
             boss = Monster(
-                health=9,
+                health=5,
                 x=-50,
                 y=170,
                 speed=40,
