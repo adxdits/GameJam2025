@@ -90,7 +90,9 @@ class GameView(arcade.Window):
 
         # -- Sounds --
         self.music = arcade.load_sound(SOUND_PATH + "music.mp3")
+        self.musicBoss = arcade.load_sound(SOUND_PATH + "musicboss.mp3")
         self.gling_sound = arcade.load_sound(SOUND_PATH + "gling.mp3")
+        self.victory_sound = arcade.load_sound(SOUND_PATH + "victory.wav")
         self.Enerve1_sound = arcade.load_sound(SOUND_PATH + "Enerve_1.mp3")
         self.Enerve2_sound = arcade.load_sound(SOUND_PATH + "Enerve_2.mp3")
         self.Enerve3_sound = arcade.load_sound(SOUND_PATH + "Enerve_3.mp3")
@@ -103,7 +105,7 @@ class GameView(arcade.Window):
         self.Happy4_sound = arcade.load_sound(SOUND_PATH + "Happy_4.mp3")
         self.Happy5_sound = arcade.load_sound(SOUND_PATH + "Happy_5.mp3")
 
-        player = arcade.play_sound(self.music, looping=True)
+        self.player = arcade.play_sound(self.music, looping=True)
 
         # -- Paramètres généraux --
         self.LVL = 0  # Les stades/niveaux du jeu
@@ -358,6 +360,10 @@ class GameView(arcade.Window):
             align="center",
         )
 
+        if self.transition_level == 4:
+            arcade.stop_sound(self.player)
+            self.player = arcade.play_sound(self.musicBoss)
+
 
     def on_draw(self):
         self.clear()
@@ -568,6 +574,8 @@ class GameView(arcade.Window):
                     else:
                         # Le héros est trop mécontent, fin du jeu
                         print("Game Over - Hero's mood too low!")
+                        arcade.stop_sound(self.player)
+                        arcade.play_sound(self.victory_sound,volume=1)
                         self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
                         self.game_ended = True
                 else:
