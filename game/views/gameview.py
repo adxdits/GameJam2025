@@ -131,7 +131,7 @@ class GameView(arcade.Window):
         # -- Entitées: Héros --
         self.character = Character(self)
         self.time_between_hero_attacks = None
-        self.DELAY_HERO_ATTACKS = 1.0
+        self.DELAY_HERO_ATTACKS = 1.25
         self.MainCharacter = MainCharacter(self)
 
         # -- QTE --
@@ -466,9 +466,9 @@ class GameView(arcade.Window):
         for i in range(nb_enemies):
             monster = Monster(
                 health=3,
-                x=-50 * (i+1),
+                x=-100 * (i+1),
                 y=170,
-                speed=60,
+                speed=90,
                 level=spawn_level  # Passe le niveau pour la sélection des monstres
             )
             self.enemies_buffer.append(monster)
