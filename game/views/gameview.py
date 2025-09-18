@@ -151,6 +151,16 @@ class GameView(arcade.Window):
         # -- Mots/Combos --
         self.current_words = []
         self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
+        
+        # -- Level Transition --
+        self.showing_level_transition = False
+        self.transition_timer = 0.0
+        self.TRANSITION_DURATION = 2.2  # 2.2 seconds total (plus court)
+        self.FADE_IN_DURATION = 0.8     # Time to fade in
+        self.HOLD_DURATION = 1.4        # Time to hold at full opacity
+        # Pas de FADE_OUT_DURATION - transition se termine directement
+        self.transition_level = 1
+        self.transition_opacity = 0.0   # Current opacity (0.0 to 1.0)
 
     def _begin_ui(self):
         # scale uniforme (fit) pour conserver le ratio
@@ -306,11 +316,54 @@ class GameView(arcade.Window):
                 anchor_x="center", anchor_y="top", # ANCRAGE EN HAUT (comme les mots)
             )
 
+    def _draw_level_transition(self):
+        """Dessine l'écran de transition entre les niveaux avec fade-in seulement."""
+        # Calculate opacity based on transition phase
+        elapsed = self.TRANSITION_DURATION - self.transition_timer
+        
+        if elapsed <= self.FADE_IN_DURATION:
+            # Fade in phase
+            self.transition_opacity = elapsed / self.FADE_IN_DURATION
+        else:
+            # Hold phase - reste à opacité maximale jusqu'à la fin
+            self.transition_opacity = 1.0
+        
+        # Clamp opacity between 0 and 1
+        self.transition_opacity = max(0.0, min(1.0, self.transition_opacity))
+        
+        # Convert opacity to alpha (0-255)
+        alpha = int(self.transition_opacity * 255)
+        
+        # Background with fade
+        background_color = (*arcade.color.BLACK[:3], alpha)
+        arcade.draw_rectangle_filled(
+            self._sx(self.UI_W // 2),
+            self._sy(self.UI_H // 2),
+            self._sw(self.UI_W),
+            self._sh(self.UI_H),
+            background_color
+        )
+        
+        # Text with fade
+        text_color = (*arcade.color.WHITE[:3], alpha)
+        level_text = f"NIVEAU {self.transition_level}"
+        arcade.draw_text(
+            level_text,
+            self._sx(self.UI_W // 2),
+            self._sy(self.UI_H // 2),
+            text_color,
+            self._sf(80),
+            anchor_x="center",
+            anchor_y="center",
+            font_name="DigitalDisco",
+            bold=True
+        )
 
     def on_draw(self):
         self.clear()
         self._begin_ui()
 
+        # Always draw the game background
         virt_cover = max(self.UI_W / self.bg_w, self.UI_H / self.bg_h)
         final_scale = virt_cover * self.ui_scale  # important: * ui_scale
 
@@ -414,6 +467,10 @@ class GameView(arcade.Window):
         # Dessiner le dialogue
         self.dialog_manager.draw()
         
+        # Draw transition overlay on top of everything
+        if self.showing_level_transition:
+            self._draw_level_transition()
+        
         # Dessiner l'écran de fin si le jeu est terminé
         if self.end_screen:
             self.clear()
@@ -493,9 +550,10 @@ class GameView(arcade.Window):
                     self.dialog_manager.get_dialog(self.hero_mood)
                     self.count_success += 1
                     if self.count_success >= SUCCESS_STAGES[self.LVL]:
-                        if self.LVL < 4:
+                        if self.LVL < 3:  # Changed from 4 to 3 since we have 4 backgrounds (0-3)
                             self.LVL += 1
-                            self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
+                            self.start_level_transition(self.LVL + 1)  # Show "NIVEAU 2", "NIVEAU 3", etc.
+                            self.count_success = 0  # Reset success counter for new level
                     print("QTE réussi ! Sort lancé !")
                     arcade.play_sound(self.gling_sound)
                     arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
@@ -515,6 +573,14 @@ class GameView(arcade.Window):
                 else:
                     print("QTE continue..")
                     
+    def start_level_transition(self, new_level):
+        """Démarre la transition vers un nouveau niveau avec fade-in seulement."""
+        self.showing_level_transition = True
+        self.transition_timer = self.TRANSITION_DURATION
+        self.transition_level = new_level
+        self.transition_opacity = 0.0
+        print(f"Transition avec fade-in vers le niveau {new_level}")
+    
     def show_end_screen(self):
         self.game_ended = True
         # self.end_screen = EndGame(self, game_results)
@@ -524,6 +590,15 @@ class GameView(arcade.Window):
         if self.game_ended:
             if self.end_screen:
                 self.end_screen.update(delta_time)
+            return
+        
+        # Gestion de la transition de niveau
+        if self.showing_level_transition:
+            self.transition_timer -= delta_time
+            if self.transition_timer <= 0:
+                self.showing_level_transition = False
+                # Changer le background après la transition
+                self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
             return
 
         # Gestion normale du jeu
