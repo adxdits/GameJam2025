@@ -142,7 +142,7 @@ class GameView(arcade.Window):
         # -- QTE --
         self.cast = Cast()
         self.QTE_PHASE = False
-        self.QTE_PHASE_DELAY = 4.0
+        self.QTE_PHASE_DELAY = 1.0
         self.qte_active_timer = 0  # Timer pour la durée du QTE
         self.qte_delay_timer = 0  # Timer de pause entre deux QTE
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
