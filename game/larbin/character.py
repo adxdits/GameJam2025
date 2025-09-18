@@ -2,6 +2,8 @@ import arcade
 from animation.animation_utils import create_animation_from_frames
 from pathlib import Path
 
+# --- Cache global pour partager les animations entre toutes les instances ---
+_ANIMATION_CACHE = {}
 
 class Character:
     def __init__(self, window):
@@ -15,8 +17,8 @@ class Character:
         self.target_v_height = 800
         
         # Pour gérer l'animation d'attaque
-        self.attack_duration = 0.5  # Durée de l'animation d'attaque
-        self.attack_time = 0  # Temps écoulé depuis le début de l'attaque
+        self.attack_duration = 0.5
+        self.attack_time = 0
         self.is_attacking = False
         
         self._load_animations()
@@ -24,28 +26,35 @@ class Character:
         self.set_state("idle")
         
     def _load_animations(self):
+        """Charge les animations avec cache global"""
+        global _ANIMATION_CACHE
         base_path = Path(__file__).resolve().parent.parent.parent / "game" / "animation" / "cropped-assets" / "Priest"
         
-        # Charger différentes animations
-        self.animations["idle"] = create_animation_from_frames(
-            frame_paths=["Priest001.png", "Priest002.png", "Priest003.png", 
-                        "Priest004.png", "Priest005.png", "Priest006.png"],
-            base_path=str(base_path / "Priest-standing"),
-            scale=7.0,
-            flip_horizontal=True,
-            position_x=0,
-            position_y=0
-        )
-        
-        self.animations["attack"] = create_animation_from_frames(
-            frame_paths=["Priest047.png", "Priest048.png", "Priest049.png", 
-                        "Priest050.png", "Priest051.png"],
-            base_path=str(base_path / "Priest-Healing"),
-            scale=7.0,
-            flip_horizontal=True,
-            position_x=0,
-            position_y=0
-        )
+        animation_defs = {
+            "idle": {
+                "frames": ["Priest001.png", "Priest002.png", "Priest003.png", 
+                           "Priest004.png", "Priest005.png", "Priest006.png"],
+                "folder": "Priest-standing"
+            },
+            "attack": {
+                "frames": ["Priest047.png", "Priest048.png", "Priest049.png", 
+                           "Priest050.png", "Priest051.png"],
+                "folder": "Priest-Healing"
+            }
+        }
+
+        for state, anim in animation_defs.items():
+            cache_key = f"Priest-{state}"
+            if cache_key not in _ANIMATION_CACHE:
+                _ANIMATION_CACHE[cache_key] = create_animation_from_frames(
+                    frame_paths=anim["frames"],
+                    base_path=str(base_path / anim["folder"]),
+                    scale=7.0,  # Scale appliqué plus tard dans draw()
+                    flip_horizontal=True,
+                    position_x=0,
+                    position_y=0
+                )
+            self.animations[state] = _ANIMATION_CACHE[cache_key]
             
     def set_state(self, new_state):
         """Change l'état et l'animation du personnage"""
@@ -67,22 +76,15 @@ class Character:
                     self.set_state("idle")
             
     def draw(self):
-        """Dessine avec conversion virtuel -> écran + scale UI."""
+        """Dessine avec conversion virtuel -> écran + scale UI"""
         if not self.current_sprite:
             return
 
-        # Position (virtuel -> écran)
         cx = self.window._sx(self.x)
         cy = self.window._sy(self.y)
 
-        # Échelle calculée pour que la texture ait target_v_height en VIRTUEL,
-        # puis on applique le ui_scale pour l’écran.
-        tex = self.current_sprite.texture  # frame courante
-        if tex and tex.height > 0:
-            scale_virtual = self.target_v_height / tex.height
-        else:
-            scale_virtual = 1.0
-
+        tex = self.current_sprite.texture
+        scale_virtual = self.target_v_height / tex.height if tex and tex.height > 0 else 1.0
         sc = scale_virtual * self.window.ui_scale
 
         self.current_sprite.center_x = cx

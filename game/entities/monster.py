@@ -13,7 +13,11 @@ MONSTER_TYPES = {
     3: ["Boss"]                                       # Niveau 4
 }
 
-class Monster():
+# --- Cache global pour partager les textures entre tous les monstres ---
+_ANIMATION_CACHE = {}
+
+
+class Monster:
     def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1, window=None):
         self.window = window
 
@@ -21,9 +25,7 @@ class Monster():
         self.death_sound = arcade.load_sound(SOUND_PATH + "death.mp3")
         self.deathboss_sound = arcade.load_sound(SOUND_PATH + "deathboss.mp3")
 
-
         self.target_v_height = 800
-
         self.health = health
         self.x = x
         self.y = y
@@ -54,19 +56,15 @@ class Monster():
         self.y = y
         
     def update_coordinates(self, delta_x: int, delta_y: int):
-        prev_x = self.x
-        prev_y = self.y
         self.x += delta_x
         self.y += delta_y
         distance = abs(delta_x) + abs(delta_y)
         self.distance_moved += distance
         
-        # Si on a effectivement bougé (position changée)
         if distance > 0 and not self.is_dying and not self.is_attacking:
             self.set_state("walk")
-        # Si on est arrêté et pas en train d'attaquer/mourir
         elif distance == 0 and not self.is_dying and not self.is_attacking:
-            arcade.play_sound(self.eattack_sound,volume=10)
+            arcade.play_sound(self.eattack_sound, volume=10)
             self.set_state("attack")
         
     def get_speed(self):
@@ -91,55 +89,48 @@ class Monster():
         return False
     
     def _load_animations(self):
-        """Charge les animations du monstre"""
+        """Charge les animations du monstre (avec cache global pour éviter de recharger)"""
+        global _ANIMATION_CACHE
+
         base_path = Path(__file__).resolve().parent.parent / "animation" / "cropped-assets" / self.unit_type
         
         folders_map = {
             "walk": [
-                "walk",
-                f"{self.unit_type}-walk",
-                f"{self.unit_type}-Walking",
-                "Wolf-walking",
-                f"{self.unit_type}-walking"
+                "walk", f"{self.unit_type}-walk", f"{self.unit_type}-Walking",
+                "Wolf-walking", f"{self.unit_type}-walking"
             ],
             "attack": [
-                "attack",
-                f"{self.unit_type}-attack",
-                "Wolf-attack",
-                f"{self.unit_type}-Attack",
-                f"{self.unit_type}-attacks"
+                "attack", f"{self.unit_type}-attack", "Wolf-attack",
+                f"{self.unit_type}-Attack", f"{self.unit_type}-attacks"
             ],
             "death": [
-                "death",
-                "Death",
-                f"{self.unit_type}-death",
-                "Wolf-death",
-                f"{self.unit_type}-Death"
+                "death", "Death", f"{self.unit_type}-death",
+                "Wolf-death", f"{self.unit_type}-Death"
             ],
             "idle": [
-                "stand",
-                "standing",
-                f"{self.unit_type}-stand",
-                f"{self.unit_type}-standing",
-                "Wolf-standing",
-                f"{self.unit_type}-Standing"
+                "stand", "standing", f"{self.unit_type}-stand",
+                f"{self.unit_type}-standing", "Wolf-standing", f"{self.unit_type}-Standing"
             ]
         }
         
         for anim_type, possible_folders in folders_map.items():
-            for folder in possible_folders:
-                folder_path = base_path / folder
-                if folder_path.exists():
-                    frame_files = sorted([f.name for f in folder_path.glob("*.png")])
-                    if frame_files:
-                        self.animations[anim_type] = create_animation_from_frames(
-                            frame_paths=frame_files,
-                            base_path=str(folder_path),
-                            scale=8.0,
-                            position_x=0,
-                            position_y=0
-                        )
-                        break
+            cache_key = f"{self.unit_type}-{anim_type}"
+            if cache_key not in _ANIMATION_CACHE:
+                for folder in possible_folders:
+                    folder_path = base_path / folder
+                    if folder_path.exists():
+                        frame_files = sorted([f.name for f in folder_path.glob("*.png")])
+                        if frame_files:
+                            _ANIMATION_CACHE[cache_key] = create_animation_from_frames(
+                                frame_paths=frame_files,
+                                base_path=str(folder_path),
+                                scale=7.0,   # scale appliqué plus tard dans update()
+                                position_x=0,
+                                position_y=0
+                            )
+                            break
+            if cache_key in _ANIMATION_CACHE:
+                self.animations[anim_type] = _ANIMATION_CACHE[cache_key]
 
     def set_state(self, new_state):
         """Change l'état et l'animation du monstre"""
@@ -158,7 +149,7 @@ class Monster():
                 self.current_sprite.center_x = cx
                 self.current_sprite.center_y = cy
 
-                # Scale en fonction de la hauteur virtuelle cible + ui_scale
+                # Scale appliqué dynamiquement
                 tex = self.current_sprite.texture
                 if tex and tex.height > 0:
                     scale_virtual = self.target_v_height / tex.height
@@ -166,22 +157,19 @@ class Monster():
                     scale_virtual = 1.0
                 self.current_sprite.scale = scale_virtual * self.window.ui_scale
             else:
-                # Fallback si pas de window fournie
                 self.current_sprite.center_x = self.x
                 self.current_sprite.center_y = self.y
                 self.current_sprite.scale = 1.0
 
-            # Gestion de l'animation d'attaque
+            # Gestion attaque terminée
             if self.is_attacking and self.state == "attack":
-                # Si l'animation d'attaque est terminée
                 if hasattr(self.current_sprite, 'frame_num'):
                     if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
                         self.is_attacking = False
                         self.set_state("idle")
             
-            # Gestion de l'animation de mort
+            # Gestion mort terminée
             if self.is_dying and self.state == "death":
-                # Si l'animation de mort est terminée
                 if hasattr(self.current_sprite, 'frame_num'):
                     if self.current_sprite.frame_num >= len(self.current_sprite.frames) - 1:
                         return True
