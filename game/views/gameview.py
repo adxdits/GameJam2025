@@ -353,7 +353,10 @@ class GameView(arcade.Window):
         )
 
         # Texte centré (virtuel) — taille de police scalée
-        level_text = f"NIVEAU {self.transition_level}"
+        if self.transition_level == 4:  
+            level_text = f"BOSS FINAL"
+        else:
+            level_text = f"NIVEAU {self.transition_level}"
         arcade.draw_text(
             level_text,
             self._sx(self.UI_W // 2),
@@ -394,13 +397,14 @@ class GameView(arcade.Window):
         x = self.UI_W - parchment_width // 3 + 50  # centré à droite
         y = self.UI_H // 2                   # centré verticalement
 
-        arcade.draw_texture_rectangle(
-            self._sx(x), 
-            self._sy(y),
-            self._sw(parchment_width), 
-            self._sh(parchment_height),
-            parchment_texture
-        )
+        if(self.transition_level != 4):
+            arcade.draw_texture_rectangle(
+                self._sx(x), 
+                self._sy(y),
+                self._sw(parchment_width), 
+                self._sh(parchment_height),
+                parchment_texture
+            )
 
         # Zone texte "safe" dans le parchemin
         margin_left = int(parchment_width * 0.26)
