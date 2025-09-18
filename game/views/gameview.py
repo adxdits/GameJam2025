@@ -378,6 +378,10 @@ class GameView(arcade.Window):
             self.enemies_buffer.append(Monster(3, -50 * (i+1), 170, 60))
 
     def on_key_press(self, key, modifiers):
+        # Ne rien faire si le jeu est terminé
+        if self.game_ended:
+            return
+            
         # Si on est en phase de QTE
         if self.QTE_PHASE:
             # On traite le cas où une flèche directionnelle est pressée
@@ -396,9 +400,13 @@ class GameView(arcade.Window):
                     self.QTE_PHASE = False
                     if self.hero_mood > 0:
                         self.hero_mood -= 1 
-                    self.dialog_manager.get_dialog(self.hero_mood)
-                    print("QTE échoué !")
-                    self.show_end_screen()  # Défaite
+                        self.dialog_manager.get_dialog(self.hero_mood)
+                        print("QTE échoué !")
+                    else:
+                        # Le héros est trop mécontent, fin du jeu
+                        print("Game Over - Hero's mood too low!")
+                        self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
+                        self.game_ended = True
                 else:
                     print("QTE continue..")
                     
@@ -407,6 +415,13 @@ class GameView(arcade.Window):
         # self.end_screen = EndGame(self, game_results)
                 
     def on_update(self, delta_time):
+        # Si le jeu est terminé, ne mettre à jour que l'écran de fin
+        if self.game_ended:
+            if self.end_screen:
+                self.end_screen.update(delta_time)
+            return
+
+        # Gestion normale du jeu
         if not self.QTE_PHASE:
              self.set_combo_data(LISTES, self.generer_phrase(self.LVL))
         if self.QTE_PHASE:
