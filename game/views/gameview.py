@@ -158,6 +158,10 @@ class GameView(arcade.Window):
         self.current_words = []
         self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
         
+        # -- Dialogues --
+        self.initial_dialog_shown = False
+        self.initial_dialog_timer = 8.0  # Temps d'affichage du dialogue initial
+        
         # -- Level Transition --
         self.showing_level_transition = False
         self.transition_timer = 0.0
@@ -559,8 +563,8 @@ class GameView(arcade.Window):
             self.enemies_buffer.append(monster)
 
     def on_key_press(self, key, modifiers):
-        # Ne rien faire si le jeu est terminé
-        if self.game_ended:
+        # Ne rien faire si le jeu est terminé ou si un dialogue est actif
+        if self.game_ended or not self.initial_dialog_shown or self.dialog_manager.timer > 0:
             return
             
         # Si on est en phase de QTE
@@ -596,12 +600,14 @@ class GameView(arcade.Window):
                         print("QTE échoué !")
                         arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
                     else:
-                        # Le héros est trop mécontent, fin du jeu
+                        # Le héros est trop mécontent, afficher le dialogue final
                         print("Game Over - Hero's mood too low!")
                         arcade.stop_sound(self.player)
-                        arcade.play_sound(self.victory_sound,volume=1)
-                        self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
-                        self.game_ended = True
+                        self.dialog_manager.current_dialog = "Tu es inutile comme Larbin ! Je continue sans toi !"
+                        self.dialog_manager.timer = 3.0  # Affiche le message pendant 3 secondes
+                        self.QTE_PHASE = False  # Arrêt des QTE
+                        self.current_words = []  # Effacement des mots QTE
+                        self.game_ended = True  # Marque le jeu comme terminé
                 # Si QTE continue
                 else:
                     print("QTE continue..")
@@ -620,11 +626,32 @@ class GameView(arcade.Window):
                 
     def on_update(self, delta_time):
         # ====================
+        # Gestion du dialogue initial
+        # ====================
+        if not self.initial_dialog_shown:
+            if not self.dialog_manager.current_dialog:
+                self.dialog_manager.current_dialog = "Eh Larbin ! Fais ce que je te demande sinon je te vire !"
+                self.dialog_manager.timer = self.initial_dialog_timer
+            self.dialog_manager.update(delta_time)
+            if self.dialog_manager.timer <= 0:
+                self.initial_dialog_shown = True
+                self.dialog_manager.current_dialog = ""
+            return
+
+        # ====================
         # Gestion de fin de jeu
         # ====================
         if self.game_ended:
             if self.end_screen:
                 self.end_screen.update(delta_time)
+            else:
+                # Mise à jour du timer du dialogue final
+                self.dialog_manager.update(delta_time)
+                if self.dialog_manager.timer <= 0:
+                    # Une fois le dialogue terminé, on passe à l'écran de fin
+                    self.dialog_manager.current_dialog = ""
+                    arcade.play_sound(self.victory_sound, volume=1)
+                    self.end_screen = EndGame(self, victory=False)
             return
         
         # ====================
@@ -648,7 +675,7 @@ class GameView(arcade.Window):
         # ====================
         # Gestion du QTE
         # ====================
-        if self.QTE_ACTIVE:            
+        if self.QTE_ACTIVE and self.initial_dialog_shown and not self.game_ended and not self.dialog_manager.timer > 0:
             # Timer entre deux QTE
             if self.qte_delay_timer > 0:
                 self.qte_delay_timer -= delta_time
