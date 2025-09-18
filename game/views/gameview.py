@@ -527,7 +527,7 @@ class GameView(arcade.Window):
     def set_combo_data(self, combinations: dict, words: list):
         self.current_words = words[:]
         self._add_seen_words(words)
-        self.qte_active_timer = 3 * (2+self.LVL)  # 3 / 5 / 7 secondes pour faire le QTE
+        self.qte_active_timer = 2 * (1+self.LVL)  # 3 / 5 / 7 secondes pour faire le QTE
         self.cast.set_data_combo(combinations, words, self.LVL)
         self.QTE_PHASE = True  # On entre en phase de QTE
         arcade.play_sound(random.choice([self.Neutre1_sound, self.Neutre2_sound, self.Neutre3_sound]), volume=10)
