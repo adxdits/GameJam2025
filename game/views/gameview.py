@@ -686,6 +686,7 @@ class GameView(arcade.Window):
                     self.qte_active_timer -= delta_time
                     if self.qte_active_timer <= 0:
                         self.QTE_PHASE = False
+                        self.qte_delay_timer = self.QTE_PHASE_DELAY
                         print("Temps écoulé ! QTE échoué !")
 
         # ====================
