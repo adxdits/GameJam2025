@@ -20,15 +20,25 @@ class EndGame:
             self.window.height / self.background.height
         )* 1.25
 
-        # Image animée
+        # Image animée (journal)
         self.image = arcade.Sprite(str(image_path))
         self.image.center_x = self.window.width // 2
         self.image.center_y = self.window.height // 2
-        self.image.scale = 2.0  # commence grande
         self.image.angle = 0
 
+        # --- Scale UI like characters ---
+        self.virtual_target_height = 800  # hauteur virtuelle désirée (ajuste à ton goût)
+
+        tex_h = self.image.height if self.image.height > 0 else 1
+        base_scale = (self.virtual_target_height / tex_h) * getattr(self.window, "ui_scale", 1.0)
+
+        self.start_scale_factor = 20.0   # dans ton anim, tu “commences grand”
+        self.target_scale_factor = 0.8  # facteur cible par rapport à base_scale
+
+        self.image.scale = base_scale * self.start_scale_factor
+
         # Animation
-        self.target_scale = 0.8
+        self.target_scale = base_scale * self.target_scale_factor
         self.target_angle = 40
         self.scale_speed = 0.065
         self.rotation_speed = 1.0
@@ -38,6 +48,25 @@ class EndGame:
         self.fade_alpha = 255  # commence noir
         self.fade_speed = 5    # vitesse du fondu
         self.fade_done = False
+
+    def on_resize(self, width, height):
+        # Recentrer et rescinder le fond
+        self.background.center_x = width // 2
+        self.background.center_y = height // 2
+        self.background.scale = max(
+            width / self.background.width,
+            height / self.background.height
+        ) * 1.25
+
+        # Recentrer l’image
+        self.image.center_x = width // 2
+        self.image.center_y = height // 2
+
+        # Recalcule les scales si l’UI change avec la taille (au cas où)
+        ui_scale = getattr(self.window, "ui_scale", 1.0)
+        tex_h = self.image.height if self.image.height > 0 else 1
+        base_scale = (self.virtual_target_height / tex_h) * ui_scale
+        self.target_scale = base_scale * self.target_scale_factor
 
     def update(self, delta_time: float):
         # Fondu entrant : réduire alpha
