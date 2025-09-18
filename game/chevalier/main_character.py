@@ -4,6 +4,9 @@ from pathlib import Path
 
 SOUND_PATH = "../assets/Sounds/"
 
+# --- Cache global pour partager les animations entre toutes les instances ---
+_ANIMATION_CACHE = {}
+
 class MainCharacter:
     def __init__(self, window):
         self.window = window
@@ -20,7 +23,7 @@ class MainCharacter:
         
         # Pour gérer l'animation d'attaque
         self.attack_duration = 0.5  # Durée de l'animation d'attaque
-        self.attack_time = 0  # Temps écoulé depuis le début de l'attaque
+        self.attack_time = 0
         self.is_attacking = False
         
         self._load_animations()
@@ -28,28 +31,39 @@ class MainCharacter:
         self.set_state("idle")
         
     def _load_animations(self):
+        """Charge les animations avec cache global"""
+        global _ANIMATION_CACHE
         base_path = Path(__file__).resolve().parent.parent.parent / "game" / "animation" / "cropped-assets" / "Lancer"
         
-        # Charger différentes animations
-        self.animations["idle"] = create_animation_from_frames(
-            frame_paths=["standing001.png", "standing002.png", "standing003.png", "standing004.png", 
-                        "standing005.png", "standing006.png"],
-            base_path=str(base_path / "Lancer-standing"),
-            scale=20.0,
-            flip_horizontal=True,
-            position_x=0,
-            position_y=0
-        )
+        animation_defs = {
+            "idle": {
+                "frames": [
+                    "standing001.png", "standing002.png", "standing003.png", 
+                    "standing004.png", "standing005.png", "standing006.png"
+                ],
+                "folder": "Lancer-standing"
+            },
+            "attack": {
+                "frames": [
+                    "Lancer-attack001.png", "Lancer-attack002.png", "Lancer-attack003.png", 
+                    "Lancer-attack004.png", "Lancer-attack005.png", "Lancer-attack006.png"
+                ],
+                "folder": "Lancer-attack"
+            }
+        }
 
-        self.animations["attack"] = create_animation_from_frames(
-            frame_paths=["Lancer-attack001.png", "Lancer-attack002.png", "Lancer-attack003.png", 
-                        "Lancer-attack004.png", "Lancer-attack005.png", "Lancer-attack006.png"],
-            base_path=str(base_path / "Lancer-attack"),
-            scale=20.0,
-            flip_horizontal=True,
-            position_x=0,
-            position_y=0
-        )
+        for state, anim in animation_defs.items():
+            cache_key = f"Lancer-{state}"
+            if cache_key not in _ANIMATION_CACHE:
+                _ANIMATION_CACHE[cache_key] = create_animation_from_frames(
+                    frame_paths=anim["frames"],
+                    base_path=str(base_path / anim["folder"]),
+                    scale=9.0,  # Scale appliqué plus tard dans draw()
+                    flip_horizontal=True,
+                    position_x=0,
+                    position_y=0
+                )
+            self.animations[state] = _ANIMATION_CACHE[cache_key]
             
     def set_state(self, new_state):
         """Change l'état et l'animation du personnage"""
@@ -71,21 +85,15 @@ class MainCharacter:
                     self.set_state("idle")
             
     def draw(self):
-        """Dessine avec conversion virtuel -> écran + scale UI (comme Character)."""
+        """Dessine avec conversion virtuel -> écran + scale UI"""
         if not self.current_sprite:
             return
 
-        # Position (virtuel -> écran)
         cx = self.window._sx(self.x)
         cy = self.window._sy(self.y)
 
-        # Échelle : hauteur virtuelle cible puis ui_scale
-        tex = self.current_sprite.texture  # frame courante
-        if tex and tex.height > 0:
-            scale_virtual = self.target_v_height / tex.height
-        else:
-            scale_virtual = 1.0
-
+        tex = self.current_sprite.texture
+        scale_virtual = self.target_v_height / tex.height if tex and tex.height > 0 else 1.0
         sc = scale_virtual * self.window.ui_scale
 
         self.current_sprite.center_x = cx
