@@ -317,47 +317,47 @@ class GameView(arcade.Window):
             )
 
     def _draw_level_transition(self):
-        """Dessine l'écran de transition entre les niveaux avec fade-in seulement."""
-        # Calculate opacity based on transition phase
+        """Dessine l'écran de transition entre les niveaux en coordonnées VIRTUELLES (scalées)."""
+        # Phase (fade-in puis hold)
         elapsed = self.TRANSITION_DURATION - self.transition_timer
-        
         if elapsed <= self.FADE_IN_DURATION:
-            # Fade in phase
             self.transition_opacity = elapsed / self.FADE_IN_DURATION
         else:
-            # Hold phase - reste à opacité maximale jusqu'à la fin
             self.transition_opacity = 1.0
-        
-        # Clamp opacity between 0 and 1
         self.transition_opacity = max(0.0, min(1.0, self.transition_opacity))
-        
-        # Convert opacity to alpha (0-255)
+
+        # Alpha 0..255
         alpha = int(self.transition_opacity * 255)
-        
-        # Background with fade
-        background_color = (*arcade.color.BLACK[:3], alpha)
+
+        # Couleurs RGBA sûres (certains backends préfèrent 4 octets)
+        bg_rgba = arcade.get_four_byte_color((*arcade.color.BLACK[:3], alpha))
+        text_rgba = arcade.get_four_byte_color((*arcade.color.WHITE[:3], alpha))
+
+        # Fond plein écran (virtuel) — scale via helpers
         arcade.draw_rectangle_filled(
             self._sx(self.UI_W // 2),
             self._sy(self.UI_H // 2),
-            self._sw(self.UI_W),
-            self._sh(self.UI_H),
-            background_color
+            self._sw(self.UI_W * 10),
+            self._sh(self.UI_H * 10),
+            bg_rgba
         )
-        
-        # Text with fade
-        text_color = (*arcade.color.WHITE[:3], alpha)
+
+        # Texte centré (virtuel) — taille de police scalée
         level_text = f"NIVEAU {self.transition_level}"
         arcade.draw_text(
             level_text,
             self._sx(self.UI_W // 2),
             self._sy(self.UI_H // 2),
-            text_color,
+            text_rgba,
             self._sf(80),
             anchor_x="center",
             anchor_y="center",
             font_name="DigitalDisco",
-            bold=True
+            bold=True,
+            width=self._sw(int(self.UI_W * 0.9)),  # wrap safe + scaling
+            align="center",
         )
+
 
     def on_draw(self):
         self.clear()
