@@ -7,9 +7,10 @@ SOUND_PATH = "../assets/Sounds/"
 
 # Liste des monstres disponibles par niveau
 MONSTER_TYPES = {
-    1: ["GoblinChauve", "Goblin", "EliteOrc"],        # Niveau 1
-    2: ["Orcrider", "Werebear", "WereWolf"],          # Niveau 2
-    3: ["Skeleton", "AxesSkeleton", "GreatSword"]     # Niveau 3
+    0: ["GoblinChauve", "Goblin", "EliteOrc"],        # Niveau 1
+    1: ["Orcrider", "Werebear", "WereWolf"],          # Niveau 2
+    2: ["Skeleton", "AxesSkeleton", "GreatSword"],    # Niveau 3
+    3: ["Boss"]                                       # Niveau 4
 }
 
 class Monster():
@@ -30,7 +31,7 @@ class Monster():
         # Sélection aléatoire du type de monstre en fonction du niveau
         self.unit_type = random.choice(MONSTER_TYPES[level])
 
-        if "Boss" in self.unit_type: self.target_v_height = 4000
+        if "Boss" in self.unit_type: self.target_v_height = 2000
                 
         # Animation properties
         self.state = "walk"
@@ -70,26 +71,19 @@ class Monster():
     def get_distance_moved(self):
         return self.distance_moved
         
-    def take_damage(self, damage: float, monster_list=None):
-        if self.is_dying:
-            return
-            
+    def take_damage(self, damage: float, monster_list=None):            
         self.health -= damage
         print(f"{self.health} points de vie restants.")
+        return self.is_defeated(monster_list)
         
+    def is_defeated(self, monster_list=None):
         if self.health <= 0:
             self.set_state("death")
             self.is_dying = True
             arcade.play_sound(self.death_sound, volume=10)
             if monster_list and self in monster_list:
                 monster_list.remove(self)
-
-    def is_defeated(self, monster_list=None) -> bool:
-        if self.health <= 0:
-            # Supprimer de la liste si elle est fournie
-            if monster_list is not None and self in monster_list:
-                monster_list.remove(self)
-            return True
+                return True
         return False
     
     def _load_animations(self):

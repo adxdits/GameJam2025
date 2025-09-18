@@ -112,6 +112,8 @@ class GameView(arcade.Window):
         self.end_screen = None
         self.game_ended = False
         self.count_success = 0  # Nombre de QTE réussis
+        self.QTE_ACTIVE = True
+        self.ENEMY_SPAWN = True
 
         # -- Background --
         self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
@@ -123,6 +125,7 @@ class GameView(arcade.Window):
         self.enemies_timer_on_screen = 0
         self.enemies_on_screen = False
         self.moving_distance = 400  # Distance que doit parcourir un ennemi/monstre
+        self.TIME_BEFORE_SPAWN = 2.0
 
         # -- UI --
         self.UI_W, self.UI_H = 1920, 1080  # résolution virtuelle de référence
@@ -133,14 +136,15 @@ class GameView(arcade.Window):
         # -- Entitées: Héros --
         self.character = Character(self)
         self.time_between_hero_attacks = None
-        self.DELAY_HERO_ATTACKS = 1.25
+        self.DELAY_HERO_ATTACKS = 1.5
         self.MainCharacter = MainCharacter(self)
 
         # -- QTE --
         self.cast = Cast()
         self.QTE_PHASE = False
+        self.QTE_PHASE_DELAY = 4.0
         self.qte_active_timer = 0  # Timer pour la durée du QTE
-        self.TIME_BEFORE_SPAWN = 2.0
+        self.qte_delay_timer = 0  # Timer de pause entre deux QTE
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
         self.feedback_timer = 0.0
         
@@ -470,8 +474,10 @@ class GameView(arcade.Window):
         self.character.draw()
 
         self.MainCharacter.draw()
+        
         # Dessiner le dialogue
-        self.dialog_manager.draw()
+        if self.qte_delay_timer > 0:
+            self.dialog_manager.draw()
         
         # Draw transition overlay on top of everything
         if self.showing_level_transition:
@@ -522,9 +528,22 @@ class GameView(arcade.Window):
         self.enemies_timer_before_spawn = 5
     
     def spawn_enemies(self):
+        print(self.LVL)
+        # Si niveau du Boss
+        if self.LVL == 3:
+            boss = Monster(
+                health=9,
+                x=-50,
+                y=170,
+                speed=40,
+                level=self.LVL,  # Niveau max pour le boss
+                window=self
+            )
+            self.enemies_buffer.append(boss)
+            return
+        # ------------------------------------------------- #
+        # Sinon, ennemies par LVL
         nb_enemies = random.randint(1, 3)
-        # Ajuster le niveau pour correspondre aux niveaux 1, 2, 3
-        spawn_level = self.LVL + 1 if self.LVL < 3 else 3
         
         for i in range(nb_enemies):
             monster = Monster(
@@ -532,7 +551,7 @@ class GameView(arcade.Window):
                 x=-50 * (i+1),
                 y=120,
                 speed=60,
-                level=spawn_level,  # Passe le niveau pour la sélection des monstres
+                level=self.LVL,  # Passe le niveau pour la sélection des monstres
                 window=self
             )
             self.enemies_buffer.append(monster)
@@ -555,19 +574,23 @@ class GameView(arcade.Window):
                         self.hero_mood += 1
                     self.dialog_manager.get_dialog(self.hero_mood)
                     self.count_success += 1
+                    self.qte_delay_timer = self.QTE_PHASE_DELAY
                     if self.count_success >= SUCCESS_STAGES[self.LVL]:
                         if self.LVL < 3:  # Changed from 4 to 3 since we have 4 backgrounds (0-3)
                             self.LVL += 1
                             self.start_level_transition(self.LVL + 1)  # Show "NIVEAU 2", "NIVEAU 3", etc.
                             self.count_success = 0  # Reset success counter for new level
+                            self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
+                            self.enemies_buffer.clear()
                     print("QTE réussi ! Sort lancé !")
                     arcade.play_sound(self.gling_sound)
                     arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
-                    # Lancer l'animation d'attaque
+                # Si QTE échoué
                 elif val == -1:
                     self.QTE_PHASE = False
                     if self.hero_mood > 0:
                         self.hero_mood -= 1 
+                        self.qte_delay_timer = self.QTE_PHASE_DELAY
                         self.dialog_manager.get_dialog(self.hero_mood)
                         print("QTE échoué !")
                         arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
@@ -578,6 +601,7 @@ class GameView(arcade.Window):
                         arcade.play_sound(self.victory_sound,volume=1)
                         self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
                         self.game_ended = True
+                # Si QTE continue
                 else:
                     print("QTE continue..")
                     
@@ -589,18 +613,22 @@ class GameView(arcade.Window):
         self.transition_opacity = 0.0
         print(f"Transition avec fade-in vers le niveau {new_level}")
     
-    def show_end_screen(self):
+    def show_end_screen(self, victory=True):
         self.game_ended = True
-        # self.end_screen = EndGame(self, game_results)
+        self.end_screen = EndGame(self, victory)
                 
     def on_update(self, delta_time):
-        # Si le jeu est terminé, ne mettre à jour que l'écran de fin
+        # ====================
+        # Gestion de fin de jeu
+        # ====================
         if self.game_ended:
             if self.end_screen:
                 self.end_screen.update(delta_time)
             return
         
+        # ====================
         # Gestion de la transition de niveau
+        # ====================
         if self.showing_level_transition:
             self.transition_timer -= delta_time
             if self.transition_timer <= 0:
@@ -608,59 +636,80 @@ class GameView(arcade.Window):
                 # Changer le background après la transition
                 self.bg_tex = arcade.load_texture(BACKGROUNDS[self.LVL])
             return
+        
+        # ====================
+        # Gestion des flags spéciaux (niveau 3)
+        # ====================
+        if self.LVL == 3:
+            self.QTE_ACTIVE = False
+            self.ENEMY_SPAWN = False
 
-        # Gestion normale du jeu
-        if not self.QTE_PHASE:
-             self.set_combo_data(LISTES, self.generer_phrase())
-        if self.QTE_PHASE:
-            self.qte_active_timer -= delta_time
-            if self.qte_active_timer <= 0:
-                self.QTE_PHASE = False
-                print("Temps écoulé ! QTE échoué !")
-                
-        # Mise à jour des monstres
-        if len(self.enemies_buffer) == 0:
+        # ====================
+        # Gestion du QTE
+        # ====================
+        if self.QTE_ACTIVE:            
+            # Timer entre deux QTE
+            if self.qte_delay_timer > 0:
+                self.qte_delay_timer -= delta_time
+            else:
+                if not self.QTE_PHASE:
+                    self.set_combo_data(LISTES, self.generer_phrase())
+                if self.QTE_PHASE:
+                    self.qte_active_timer -= delta_time
+                    if self.qte_active_timer <= 0:
+                        self.QTE_PHASE = False
+                        print("Temps écoulé ! QTE échoué !")
+
+        # ====================
+        # Gestion du spawn des ennemis
+        # ====================
+        if len(self.enemies_buffer) == 0 and self.enemies_timer_before_spawn is None:
             self.enemies_on_screen = False
-            if self.enemies_timer_before_spawn is None:
-                self.enemies_timer_before_spawn = self.TIME_BEFORE_SPAWN
-            
+            self.enemies_timer_before_spawn = self.TIME_BEFORE_SPAWN
+
         if self.enemies_timer_before_spawn is not None:
             self.enemies_timer_before_spawn -= delta_time
             if self.enemies_timer_before_spawn <= 0:
                 self.spawn_enemies()
                 self.enemies_timer_before_spawn = None
 
-        # Mise à jour des animations et positions des monstres
-        for monster in self.enemies_buffer[:]:  # Copie de la liste pour itération sûre
-            should_remove = monster.update(delta_time)
-            if should_remove:
-                if monster in self.enemies_buffer:
-                    self.enemies_buffer.remove(monster)
-                continue
+        # ====================
+        # Mise à jour des ennemis
+        # ====================
+        for monster in self.enemies_buffer[:]:
+            monster.update(delta_time)
 
-            # Déplacement des monstres jusqu'à leur position
+            # Déplacement progressif
             if monster.get_distance_moved() < self.moving_distance:
                 monster.update_coordinates(monster.get_speed() * delta_time, 0)
-                # Si ce monstre atteint sa position
                 if monster.get_distance_moved() >= self.moving_distance:
-                    # Force l'état idle pour ce monstre
-                    monster.update_coordinates(0, 0)  # Arrête le mouvement
-                    # Active le combat si ce n'est pas déjà fait
+                    monster.update_coordinates(0, 0)  # Stop
                     if not self.enemies_on_screen:
                         self.enemies_on_screen = True
                         self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
 
-        # Gérer les attaques du héros
+        # ====================
+        # Logique d’attaque
+        # ====================
         if self.enemies_on_screen and len(self.enemies_buffer) > 0:
+            monster = self.enemies_buffer[0]
+
             if self.time_between_hero_attacks is not None:
                 self.time_between_hero_attacks -= delta_time
-                if self.time_between_hero_attacks <= 0:
-                    if len(self.enemies_buffer) > 0:
-                        self.enemies_buffer[0].take_damage(1, self.enemies_buffer)
-                        self.MainCharacter.play_attack_animation()
-                        self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
 
-        # Mettre à jour l'animation du personnage
+            if self.time_between_hero_attacks <= 0 and not monster.is_attacking:
+                self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
+                self.MainCharacter.play_attack_animation()
+                is_defeated = monster.take_damage(1, self.enemies_buffer)
+                print("coucou")
+                print(self.enemies_buffer)
+                if self.LVL == 3 and is_defeated:
+                    self.show_end_screen()  # Victoire contre boss
+                print("Héros attaque!")
+
+        # ====================
+        # Autres mises à jour
+        # ====================
         self.character.update(delta_time)
         self.MainCharacter.update(delta_time)
         self.dialog_manager.update(delta_time)
@@ -668,56 +717,10 @@ class GameView(arcade.Window):
         if self.feedback_timer > 0:
             self.feedback_timer -= delta_time
 
-        self.MainCharacter.update(delta_time)
-        
-        # Update the dialogue manager
-        self.dialog_manager.update(delta_time)
-
-        if self.feedback_timer > 0:
-            self.feedback_timer -= delta_time
-
-        # --Entités:
-        # Fin de vague d'ennemis → relance un timer
-        if len(self.enemies_buffer) == 0 and self.enemies_timer_before_spawn is None:
-            self.enemies_on_screen = False
-            self.enemies_timer_before_spawn = self.TIME_BEFORE_SPAWN  # relance une nouvelle vague
-
-        # Décrémentation du timer avant spawn
-        if not self.enemies_on_screen and self.enemies_timer_before_spawn is not None:
-            self.enemies_timer_before_spawn -= delta_time
-
-            # Quand le timer atteint zéro ou moins --> spawn ennemis
-            if self.enemies_timer_before_spawn <= 0:
-                self.spawn_enemies()
-                self.enemies_timer_before_spawn = None  # désactive le timer
-
-        # La logique de déplacement est maintenant gérée dans la boucle de mise à jour principale
-                    
-        # Logique d'attaque des ennemis
-        if self.enemies_on_screen and len(self.enemies_buffer) > 0:
-            monster = self.enemies_buffer[0]
-            
-            # Décrémenter le timer entre les attaques
-            if self.time_between_hero_attacks > 0:
-                self.time_between_hero_attacks -= delta_time
-                
-            # Si le timer est écoulé et que le monstre n'est pas en train d'attaquer
-            elif self.time_between_hero_attacks <= 0 and not monster.is_attacking:
-                # Lancer l'attaque du monstre
-                monster.play_attack_animation()
-                self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS / 2  # Délai avant la contre-attaque du héros
-                print("Monstre attaque!")  # Debug
-                
-            # Si le monstre a fini son attaque (retour à l'état idle)
-            elif not monster.is_attacking and monster.state == "idle":
-                # Le héros contre-attaque
-                self.MainCharacter.play_attack_animation()
-                monster.take_damage(1, self.enemies_buffer)
-                self.time_between_hero_attacks = self.DELAY_HERO_ATTACKS
-                print("Héros contre-attaque!")  # Debug
-            
+        # Mise à jour écran de fin (au cas où)
         if self.game_ended and self.end_screen:
             self.end_screen.update(delta_time)
+
             
         
 if __name__ == "__main__":
