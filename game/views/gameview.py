@@ -569,7 +569,6 @@ class GameView(arcade.Window):
     def change_mood(self, success):
         if success and self.hero_mood < 3:
             self.hero_mood += 1
-            self.dialog_manager.get_dialog(self.hero_mood)
             print("QTE réussi ! Sort lancé !")
             arcade.play_sound(self.gling_sound)
             arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
@@ -578,7 +577,6 @@ class GameView(arcade.Window):
             if self.hero_mood > 0:
                 self.hero_mood -= 1 
                 self.qte_delay_timer = self.QTE_PHASE_DELAY
-                self.dialog_manager.get_dialog(self.hero_mood)
                 print("QTE échoué !")
                 arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
             else:
@@ -591,6 +589,8 @@ class GameView(arcade.Window):
                 self.current_words = []  # Effacement des mots QTE
                 self.game_ended = True  # Marque le jeu comme terminé
         
+        
+        self.dialog_manager.get_dialog(self.hero_mood)
         self.qte_delay_timer = self.QTE_PHASE_DELAY
 
     def on_key_press(self, key, modifiers):
