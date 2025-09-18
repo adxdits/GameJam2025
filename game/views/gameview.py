@@ -479,8 +479,8 @@ class GameView(arcade.Window):
 
         self.MainCharacter.draw()
         
-        # Dessiner le dialogue
-        if self.qte_delay_timer > 0:
+        # Dessiner le dialogue - toujours afficher si un dialogue est actif
+        if not self.initial_dialog_shown or self.dialog_manager.timer > 0:
             self.dialog_manager.draw()
         
         # Draw transition overlay on top of everything
