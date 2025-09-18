@@ -11,7 +11,11 @@ MONSTER_TYPES = {
 }
 
 class Monster():
-    def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1):
+    def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1, window=None):
+        self.window = window
+
+        self.target_v_height = 800
+
         self.health = health
         self.x = x
         self.y = y
@@ -20,7 +24,9 @@ class Monster():
         
         # Sélection aléatoire du type de monstre en fonction du niveau
         self.unit_type = random.choice(MONSTER_TYPES[level])
-        
+
+        if "Boss" in self.unit_type: self.target_v_height = 4000
+                
         # Animation properties
         self.state = "walk"
         self.animations = {}
@@ -125,8 +131,8 @@ class Monster():
                             frame_paths=frame_files,
                             base_path=str(folder_path),
                             scale=8.0,
-                            position_x=self.x,
-                            position_y=self.y
+                            position_x=0,
+                            position_y=0
                         )
                         break
 
@@ -140,9 +146,26 @@ class Monster():
         """Met à jour l'animation"""
         if self.current_sprite:
             self.current_sprite.update_animation(delta_time)
-            self.current_sprite.center_x = self.x
-            self.current_sprite.center_y = self.y
             
+            if self.window is not None:
+                cx = self.window._sx(self.x)
+                cy = self.window._sy(self.y)
+                self.current_sprite.center_x = cx
+                self.current_sprite.center_y = cy
+
+                # Scale en fonction de la hauteur virtuelle cible + ui_scale
+                tex = self.current_sprite.texture
+                if tex and tex.height > 0:
+                    scale_virtual = self.target_v_height / tex.height
+                else:
+                    scale_virtual = 1.0
+                self.current_sprite.scale = scale_virtual * self.window.ui_scale
+            else:
+                # Fallback si pas de window fournie
+                self.current_sprite.center_x = self.x
+                self.current_sprite.center_y = self.y
+                self.current_sprite.scale = 1.0
+
             # Gestion de l'animation d'attaque
             if self.is_attacking and self.state == "attack":
                 # Si l'animation d'attaque est terminée

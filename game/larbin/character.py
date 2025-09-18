@@ -11,7 +11,7 @@ class Character:
         
         # Position initiale
         self.x = 1200
-        self.y = 200
+        self.y = 120
         self.target_v_height = 800
         
         # Pour gérer l'animation d'attaque

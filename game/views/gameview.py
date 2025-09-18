@@ -467,9 +467,10 @@ class GameView(arcade.Window):
             monster = Monster(
                 health=3,
                 x=-50 * (i+1),
-                y=170,
+                y=120,
                 speed=60,
-                level=spawn_level  # Passe le niveau pour la sélection des monstres
+                level=spawn_level,  # Passe le niveau pour la sélection des monstres
+                window=self
             )
             self.enemies_buffer.append(monster)
 
