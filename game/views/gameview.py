@@ -153,7 +153,10 @@ class GameView(arcade.Window):
         self.hero_mood = 2  # Exemple : humeur initiale
         self.dialog_timer = 10  # Time between dialogues (10 seconds)
         self.dialog_active = False  # Is a dialogue currently active?
-
+        # Dialogue initial
+        self.initial_dialog_shown = False
+        self.initial_dialog_timer = 8.0  # Temps d'affichage du dialogue initial
+        
         # -- Mots/Combos --
         self.current_words = []
         self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
@@ -596,12 +599,16 @@ class GameView(arcade.Window):
                         print("QTE échoué !")
                         arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
                     else:
-                        # Le héros est trop mécontent, fin du jeu
+                        # Le héros est trop mécontent, on affiche le message final
+                        self.QTE_PHASE = False  # Arrêt immédiat des QTE
+                        self.current_words = []  # Effacement des mots QTE
+                        self.dialog_manager.current_dialog = "Tu es inutile comme Larbin ! Je continue sans toi !"
+                        self.dialog_manager.timer = 3.0  # Affiche le message pendant 3 secondes
+                        self.game_ended = True  # Marque le jeu comme terminé
                         print("Game Over - Hero's mood too low!")
                         arcade.stop_sound(self.player)
                         arcade.play_sound(self.victory_sound,volume=1)
                         self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
-                        self.game_ended = True
                 # Si QTE continue
                 else:
                     print("QTE continue..")
@@ -624,8 +631,39 @@ class GameView(arcade.Window):
         # ====================
         if self.game_ended:
             if self.end_screen:
+                # Si l'écran de fin existe, on le met à jour uniquement
                 self.end_screen.update(delta_time)
-            return
+                return
+            else:
+                # Mise à jour du timer du dialogue final
+                self.dialog_manager.update(delta_time)
+                if self.dialog_manager.timer <= 0:
+                    # Une fois le dialogue terminé, on passe à l'écran de fin
+                    self.dialog_manager.current_dialog = ""
+                    self.end_screen = EndGame(self, victory=False)
+                return  # Important: on ne continue pas le reste de la mise à jour
+
+        # Gestion du dialogue initial
+        if not self.initial_dialog_shown:
+            if not self.dialog_manager.current_dialog:
+                self.dialog_manager.current_dialog = "Eh Larbin ! Fais ce que je te demande sinon je te vire !"
+                self.dialog_manager.timer = self.initial_dialog_timer
+            self.dialog_manager.update(delta_time)
+            if self.dialog_manager.timer <= 0:
+                self.initial_dialog_shown = True
+                self.dialog_manager.current_dialog = ""
+
+        # Gestion normale du jeu
+        if self.initial_dialog_shown:  # Ne lance les QTE que si le dialogue initial est terminé
+            if not self.QTE_PHASE:
+                self.set_combo_data(LISTES, self.generer_phrase(self.LVL))
+            if self.QTE_PHASE:
+                self.qte_active_timer -= delta_time
+                if self.qte_active_timer <= 0:
+                    self.QTE_PHASE = False
+                    print("Temps écoulé ! QTE échoué !")
+                
+        # Mettre à jour l'animation du personnage
         
         # ====================
         # Gestion de la transition de niveau
@@ -711,6 +749,7 @@ class GameView(arcade.Window):
         # ====================
         # Autres mises à jour
         # ====================
+        # Mettre à jour l'animation du personnage
         self.character.update(delta_time)
         self.MainCharacter.update(delta_time)
         self.dialog_manager.update(delta_time)
