@@ -3,6 +3,8 @@ import random
 from animation.animation_utils import create_animation_from_frames
 from pathlib import Path
 
+SOUND_PATH = "../assets/Sounds/"
+
 # Liste des monstres disponibles par niveau
 MONSTER_TYPES = {
     1: ["GoblinChauve", "Goblin", "EliteOrc"],        # Niveau 1
@@ -13,6 +15,9 @@ MONSTER_TYPES = {
 class Monster():
     def __init__(self, health: int, x: int, y: int, speed: float, level: int = 1, window=None):
         self.window = window
+
+        self.eattack_sound = arcade.load_sound(SOUND_PATH + "eattack.mp3")
+        self.death_sound = arcade.load_sound(SOUND_PATH + "death.mp3")
 
         self.target_v_height = 800
 
@@ -56,6 +61,7 @@ class Monster():
             self.set_state("walk")
         # Si on est arrêté et pas en train d'attaquer/mourir
         elif distance == 0 and not self.is_dying and not self.is_attacking:
+            arcade.play_sound(self.eattack_sound,volume=10)
             self.set_state("attack")
         
     def get_speed(self):
@@ -72,8 +78,9 @@ class Monster():
         print(f"{self.health} points de vie restants.")
         
         if self.health <= 0:
-            self.is_dying = True
             self.set_state("death")
+            self.is_dying = True
+            arcade.play_sound(self.death_sound, volume=10)
             if monster_list and self in monster_list:
                 monster_list.remove(self)
 
