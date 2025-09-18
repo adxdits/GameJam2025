@@ -77,9 +77,9 @@ BACKGROUNDS = [
 ]
 
 SUCCESS_STAGES = [
-    1,
-    1,
-    1
+    7,
+    6,
+    5
 ]
 
 # =========================
@@ -142,7 +142,7 @@ class GameView(arcade.Window):
         # -- QTE --
         self.cast = Cast()
         self.QTE_PHASE = False
-        self.QTE_PHASE_DELAY = 4.0
+        self.QTE_PHASE_DELAY = 0.1
         self.qte_active_timer = 0  # Timer pour la durée du QTE
         self.qte_delay_timer = 0  # Timer de pause entre deux QTE
         self.feedback_text = ""       # "YEAH !" ou "Ohh.."
@@ -157,6 +157,10 @@ class GameView(arcade.Window):
         # -- Mots/Combos --
         self.current_words = []
         self.seen = {"TYPES": [], "QUALIFICATIFS": [], "CIBLES": []}
+        
+        # -- Dialogues --
+        self.initial_dialog_shown = False
+        self.initial_dialog_timer = 6.0  # Temps d'affichage du dialogue initial
         
         # -- Level Transition --
         self.showing_level_transition = False
@@ -349,7 +353,10 @@ class GameView(arcade.Window):
         )
 
         # Texte centré (virtuel) — taille de police scalée
-        level_text = f"NIVEAU {self.transition_level}"
+        if self.transition_level == 4:  
+            level_text = f"BOSS FINAL"
+        else:
+            level_text = f"NIVEAU {self.transition_level}"
         arcade.draw_text(
             level_text,
             self._sx(self.UI_W // 2),
@@ -390,13 +397,14 @@ class GameView(arcade.Window):
         x = self.UI_W - parchment_width // 3 + 50  # centré à droite
         y = self.UI_H // 2                   # centré verticalement
 
-        arcade.draw_texture_rectangle(
-            self._sx(x), 
-            self._sy(y),
-            self._sw(parchment_width), 
-            self._sh(parchment_height),
-            parchment_texture
-        )
+        if(self.transition_level != 4):
+            arcade.draw_texture_rectangle(
+                self._sx(x), 
+                self._sy(y),
+                self._sw(parchment_width), 
+                self._sh(parchment_height),
+                parchment_texture
+            )
 
         # Zone texte "safe" dans le parchemin
         margin_left = int(parchment_width * 0.26)
@@ -475,8 +483,8 @@ class GameView(arcade.Window):
 
         self.MainCharacter.draw()
         
-        # Dessiner le dialogue
-        if self.qte_delay_timer > 0:
+        # Dessiner le dialogue - toujours afficher si un dialogue est actif
+        if not self.initial_dialog_shown or self.dialog_manager.timer > 0:
             self.dialog_manager.draw()
         
         # Draw transition overlay on top of everything
@@ -534,7 +542,7 @@ class GameView(arcade.Window):
         # Si niveau du Boss
         if self.LVL == 3:
             boss = Monster(
-                health=9,
+                health=5,
                 x=-50,
                 y=170,
                 speed=40,
@@ -558,9 +566,36 @@ class GameView(arcade.Window):
             )
             self.enemies_buffer.append(monster)
 
+    def change_mood(self, success):
+        if success and self.hero_mood < 3:
+            self.hero_mood += 1
+            self.dialog_manager.get_dialog(self.hero_mood)
+            print("QTE réussi ! Sort lancé !")
+            arcade.play_sound(self.gling_sound)
+            arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
+        
+        if not success:
+            if self.hero_mood > 0:
+                self.hero_mood -= 1 
+                self.qte_delay_timer = self.QTE_PHASE_DELAY
+                self.dialog_manager.get_dialog(self.hero_mood)
+                print("QTE échoué !")
+                arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
+            else:
+                # Le héros est trop mécontent, afficher le dialogue final
+                print("Game Over - Hero's mood too low!")
+                arcade.stop_sound(self.player)
+                self.dialog_manager.current_dialog = "Tu es inutile comme Larbin ! Je continue sans toi !"
+                self.dialog_manager.timer = 3.0  # Affiche le message pendant 3 secondes
+                self.QTE_PHASE = False  # Arrêt des QTE
+                self.current_words = []  # Effacement des mots QTE
+                self.game_ended = True  # Marque le jeu comme terminé
+        
+        self.qte_delay_timer = self.QTE_PHASE_DELAY
+
     def on_key_press(self, key, modifiers):
-        # Ne rien faire si le jeu est terminé
-        if self.game_ended:
+        # Ne rien faire si le jeu est terminé ou si un dialogue est actif
+        if self.game_ended or not self.initial_dialog_shown or self.dialog_manager.timer > 0:
             return
             
         # Si on est en phase de QTE
@@ -572,9 +607,7 @@ class GameView(arcade.Window):
                 if val == 1:
                     self.QTE_PHASE = False
                     self.character.play_attack_animation()
-                    if self.hero_mood < 3:
-                        self.hero_mood += 1
-                    self.dialog_manager.get_dialog(self.hero_mood)
+                    self.change_mood(True)
                     self.count_success += 1
                     self.qte_delay_timer = self.QTE_PHASE_DELAY
                     if self.count_success >= SUCCESS_STAGES[self.LVL]:
@@ -583,25 +616,10 @@ class GameView(arcade.Window):
                             self.start_level_transition(self.LVL + 1)  # Show "NIVEAU 2", "NIVEAU 3", etc.
                             self.count_success = 0  # Reset success counter for new level
                             self.enemies_buffer.clear()
-                    print("QTE réussi ! Sort lancé !")
-                    arcade.play_sound(self.gling_sound)
-                    arcade.play_sound(random.choice([self.Happy1_sound, self.Happy2_sound, self.Happy3_sound, self.Happy3_sound, self.Happy4_sound, self.Happy5_sound]), volume=10)
                 # Si QTE échoué
                 elif val == -1:
                     self.QTE_PHASE = False
-                    if self.hero_mood > 0:
-                        self.hero_mood -= 1 
-                        self.qte_delay_timer = self.QTE_PHASE_DELAY
-                        self.dialog_manager.get_dialog(self.hero_mood)
-                        print("QTE échoué !")
-                        arcade.play_sound(random.choice([self.Enerve1_sound, self.Enerve2_sound, self.Enerve3_sound]), volume=10)
-                    else:
-                        # Le héros est trop mécontent, fin du jeu
-                        print("Game Over - Hero's mood too low!")
-                        arcade.stop_sound(self.player)
-                        arcade.play_sound(self.victory_sound,volume=1)
-                        self.end_screen = EndGame(self, victory=False)  # Crée l'écran de fin avec défaite
-                        self.game_ended = True
+                    self.change_mood(False)
                 # Si QTE continue
                 else:
                     print("QTE continue..")
@@ -620,11 +638,32 @@ class GameView(arcade.Window):
                 
     def on_update(self, delta_time):
         # ====================
+        # Gestion du dialogue initial
+        # ====================
+        if not self.initial_dialog_shown:
+            if not self.dialog_manager.current_dialog:
+                self.dialog_manager.current_dialog = "Eh Larbin ! Fais ce que je te demande sinon je te vire !"
+                self.dialog_manager.timer = self.initial_dialog_timer
+            self.dialog_manager.update(delta_time)
+            if self.dialog_manager.timer <= 0:
+                self.initial_dialog_shown = True
+                self.dialog_manager.current_dialog = ""
+            return
+
+        # ====================
         # Gestion de fin de jeu
         # ====================
         if self.game_ended:
             if self.end_screen:
                 self.end_screen.update(delta_time)
+            else:
+                # Mise à jour du timer du dialogue final
+                self.dialog_manager.update(delta_time)
+                if self.dialog_manager.timer <= 0:
+                    # Une fois le dialogue terminé, on passe à l'écran de fin
+                    self.dialog_manager.current_dialog = ""
+                    arcade.play_sound(self.victory_sound, volume=1)
+                    self.end_screen = EndGame(self, victory=False)
             return
         
         # ====================
@@ -648,7 +687,7 @@ class GameView(arcade.Window):
         # ====================
         # Gestion du QTE
         # ====================
-        if self.QTE_ACTIVE:            
+        if self.QTE_ACTIVE and self.initial_dialog_shown and not self.game_ended and not self.dialog_manager.timer > 0:
             # Timer entre deux QTE
             if self.qte_delay_timer > 0:
                 self.qte_delay_timer -= delta_time
@@ -659,6 +698,7 @@ class GameView(arcade.Window):
                     self.qte_active_timer -= delta_time
                     if self.qte_active_timer <= 0:
                         self.QTE_PHASE = False
+                        self.change_mood(False)
                         print("Temps écoulé ! QTE échoué !")
 
         # ====================
